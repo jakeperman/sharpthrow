@@ -55,6 +55,7 @@ class Game(arcade.Window):
         self.debugger.disable()
         self.local_debugger.disable()
         self.score = 0
+        self.mouse_pos = (0, 0)
 
         # self.d = Debug(self)
 
@@ -86,9 +87,13 @@ class Game(arcade.Window):
         arcade.start_render()
         arcade.draw_text(f"Score: {self.score}", self.left_view + SW/2 - 10, self.top_view - 50, arcade.color.WHITE, 20)
         # draw all sprites to screen
-        # arcade.draw_text(f"Pos_x: {self.player.center_x}", self.right_view - 150, self.top_view - 50, arcade.color.WHITE, 20)
+        arcade.draw_text(f"Pos_x: {self.player.center_x}", self.right_view - 225, self.top_view - 50, arcade.color.BLACK, 12)
+        arcade.draw_text(f"Mouse_Pos: {self.mouse_pos}", self.right_view - 225, self.top_view - 75,
+                         arcade.color.BLACK, 12)
         self.ladder_list.draw()
         self.player.draw_hit_box(arcade.color.RED, 1)
+        # if self.player.weapons:
+            # arcade.draw_points(self.player.weapons[-1].path, arcade.color.RED)
         # self.enemies.draw()
         self.ground_list.draw()
         if self.player.weapons:
@@ -288,11 +293,16 @@ class Game(arcade.Window):
 
     def on_mouse_press(self, x: float, y: float, button: int, modifiers: int):
         # tell player to attack
+
         # self.player.should_attack = True
         x = x + (self.right_view - SW)
         y = y + (self.top_view - SH)
         self.player.attack(x ,y)
         # kill goblin if player is within range and attacks
+    def on_mouse_motion(self, x: float, y: float, dx: float, dy: float):
+        x = x + (self.right_view - SW)
+        y = y + (self.top_view - SH)
+        self.mouse_pos = (x, y)
 
 # x = inspect.getouterframes(inspect.currentframe())[0][0].f_locals
 # print(x['Debugger'].enabled)

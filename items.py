@@ -37,7 +37,7 @@ class ThrowingKnife(arcade.Sprite):
         # move the dagger in sync with the players movement
         self.target_x, self.target_y = x, y
         self.set_direction(self.direction)
-        self.path = pg.calc_para((self.target_x, self.target_y), 200, cutoff=None, show=True)
+        self.path = pg.calc_para((self.target_x, self.target_y), 200, cutoff=-50, show=False, output=True, x_trans=1/500, precision=.25)
         # self.path = self.calc_para((self.target_x, self.target_y))
         # self.change_y = 2
         self.thrown = True
