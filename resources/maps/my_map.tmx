@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.5" tiledversion="1.5.0" orientation="orthogonal" renderorder="right-down" width="48" height="20" tilewidth="64" tileheight="64" infinite="0" nextlayerid="3" nextobjectid="1">
+ <tileset firstgid="1" source="textures.tsx"/>
+ <layer id="1" name="ground" width="48" height="20">
+  <data encoding="base64" compression="zlib">
+   eJzllm0OABAMQ4WE+9+YA0h8tJttXtKfrJZiNfmlDdXXJgBu/RdQLNpmLan6KL/mxwqIf2a+b9dr9J95rtmdfJEf1jvwc/4tEM2/xp/JJFr/vWHd/yrP1v2viOAfneVP5n2JvbNzdXh9Ao4=
+  </data>
+ </layer>
+ <layer id="2" name="ladders" width="48" height="20">
+  <data encoding="base64" compression="zlib">
+   eJzt0MENACAIBEHe9l8wDWgi0Xggu3+8iWbUrVF8C792C7926/TNyP3Lv9oNv7Yf/Rmdq/Brq+CPevDfLZuH5jlPpwFB
+  </data>
+ </layer>
+</map>
