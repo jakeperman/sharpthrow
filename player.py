@@ -1,6 +1,6 @@
 import arcade
 from items import *
-FRAMES_PER_UPDATE = 3
+FRAMES_PER_UPDATE = 5
 FPU = FRAMES_PER_UPDATE
 left = 1
 right = 0
@@ -14,14 +14,16 @@ class Player(arcade.AnimatedWalkingSprite):
         self.center_x, self.center_y = x, y
         self.animation_length = 2
         # load the textures for animation during standing, walking, and attacking
-        self.stand_right_textures = [arcade.load_texture(f"{texture_path}walk/0.png")]
-        self.stand_left_textures = [arcade.load_texture(f"{texture_path}walk/0.png", mirrored=True)]
-        self.walk_right_textures = [arcade.load_texture(f"{texture_path}walk/{texture}.png")
+        self.stand_right_textures = [arcade.load_texture(f"{texture_path}0.png")]
+        self.stand_left_textures = [arcade.load_texture(f"{texture_path}0.png", mirrored=True)]
+        self.walk_right_textures = [arcade.load_texture(f"{texture_path}{texture}.png")
                                     for texture in range(self.animation_length)]
-        self.walk_left_textures = [arcade.load_texture(f"{texture_path}walk/{texture}.png", mirrored=True)
+        self.walk_left_textures = [arcade.load_texture(f"{texture_path}{texture}.png", mirrored=True)
                                    for texture in range(self.animation_length)]
-        self.attack_right_textures = [arcade.load_texture(f"{texture_path}attack/{texture}.png") for texture in range(3)]
-        self.attack_left_textures = [arcade.load_texture(f"{texture_path}attack/{texture}.png", mirrored=True) for texture in range(3)]
+        self.attack_right_textures = [arcade.load_texture(f"{texture_path}{texture}.png")
+                                      for texture in range(2,5)]
+        self.attack_left_textures = [arcade.load_texture(f"{texture_path}{texture}.png", mirrored=True)
+                                     for texture in range(2,5)]
         self.attacking_textures = [self.attack_right_textures, self.attack_left_textures]
         self.atk_index = 0
         # setup player stats
@@ -56,6 +58,7 @@ class Player(arcade.AnimatedWalkingSprite):
             self.direction = right
         if self.last_direction != self.direction:
             self.changed_direction = True
+            self.hit_box = self.texture.hit_box_points
         else:
             self.changed_direction = False
 
@@ -67,6 +70,8 @@ class Player(arcade.AnimatedWalkingSprite):
 
         # set correct direction to update weapon
         if self.weapons:
+            if len(self.weapons) > 8 :
+                self.weapons.pop(0)
             self.weapons.update()
 
         # attack
@@ -74,25 +79,36 @@ class Player(arcade.AnimatedWalkingSprite):
             self.attack()
             self.should_attack = False
         self.last_direction = self.direction
+
         # print("center_x", self.center_x)
 
     def update_animation(self, delta_time: float = 1/60):
         super(Player, self).update_animation()
         # if the player is attacking, display the attack animation
         if self.attacking:
-            # animation will update every 3 frames
-            index = self.atk_index // FPU
-            # set texture
+            index = self.atk_index // 3
             self.texture = self.attacking_textures[self.direction][index]
-            # if the animation changes, update the weapon position
-            self.prev_index = index  # set previous index for comparison
-            self.atk_index += 1  # increase index
-            # reset index and stop attacking if finished
-            if self.atk_index > FPU * 2:
+            self.atk_index += 1
+            if self.atk_index > 6:
                 self.atk_index = 0
                 self.attacking = False
-                self.weapon.use = False
-        self.hit_box = self.texture.hit_box_points
+
+
+
+
+            # # animation will update every 3 frames
+            # index = self.atk_index // FPU
+            # # set texture
+            # self.texture = self.attacking_textures[self.direction][index]
+            # # if the animation changes, update the weapon position
+            # self.prev_index = index  # set previous index for comparison
+            # self.atk_index += 1  # increase index
+            # # reset index and stop attacking if finished
+            # if self.atk_index > FPU * 1:
+            #     self.atk_index = 0
+            #     self.attacking = False
+            #     self.weapon.use = False
+        # self.hit_box = self.texture.hit_box_points
 
 
 

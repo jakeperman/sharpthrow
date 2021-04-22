@@ -1,16 +1,18 @@
 import arcade
 import math
 import numpy as np
+import copy
 import matplotlib.pyplot as mp
 frames_per_update = 3
 left = 1
 right = 0
 from physics import Geometry
+import physics
 pg = Geometry()
 # THROWING KNIFE
 class ThrowingKnife(arcade.Sprite):
     def __init__(self, parent):
-        super().__init__("resources/sprites/4x/dagger4x.png", .4)
+        super().__init__("resources/sprites/item/knife.png", .5)
         self.parent = parent
         self.direction = self.parent.direction
         self.attacked = True
@@ -21,36 +23,71 @@ class ThrowingKnife(arcade.Sprite):
 
     def update(self):
         # update the position and direction while not attacking
-        self.direction = self.parent.direction
         # print(f"target_x: {self.target_x} current_x: {self.center_x}")
         if self.thrown:
             if self.path:
                 self.center_y = self.path[0][1]
                 self.center_x = self.path[0][0]
                 self.path.pop(0)
+                if self.direction is right:
+                    self.angle -= self.ang_change
+                elif self.direction is left:
+                    self.angle += self.ang_change
             else:
                 self.thrown = False
 
     def attack(self, x, y):
         print(f"player (x, y): ({self.parent.center_x, self.parent.center_y})")
         print(f"target (x, y): ({x, y})")
+        # self.change_y = 20
         # move the dagger in sync with the players movement
         self.target_x, self.target_y = x, y
-        self.set_direction(self.direction)
-        self.path = pg.calc_para((self.target_x, self.target_y), 200, cutoff=-50, show=False, output=True, x_trans=1/500, precision=.25)
-        # self.path = self.calc_para((self.target_x, self.target_y))
-        # self.change_y = 2
+        self.set_direction(self.direction, 0)
+        # create the throwing trajectory
+        ang = physics.get_triangle(self.parent.center_x, x, self.parent.center_y, y, 100)
+        self.tri = ang[1]
+        self.ang = ang[0]
+        path = physics.distance_trajectory(self.parent.center_x, self.parent.center_y, 30, ang[0], 3, show=False)
+        self.y_values = [y[1] for y in path if y[1] >= self.parent.bottom]
+        print("y_vals:", len(self.y_values))
+
+
+        self.angle = self.ang - 45
+
+        if 80 < self.ang < 90:
+            self.ang_change = 180/45
+        else:
+            self.ang_change = 180 / 50
+        # if self.ang <= 30:
+        #     self.ang_change = (90 - (self.angle + 45)) / len(self.y_values)
+        # elif 30 < self.ang <= 50:
+        #     self.ang_change = (90 - self.angle) / len(self.y_values)
+        # elif 50 < self.ang <= 60:
+        #     self.ang_change = (180 - (self.angle + 45)) / len(self.y_values)
+        # elif 60 < self.ang <= 66:
+        #     self.ang_change = (90 - (self.angle - 45 -5)) / len(self.y_values)
+        # elif 66 < self.ang <= 74:
+        #     self.ang_change = (180 - (self.angle + 45 - 25)) / len(self.y_values)
+        # elif 74 < self.ang <= 80:
+        #     self.ang_change = (180 - (self.angle -15)) / len(self.y_values)
+        # else:
+        #     self.ang_change = (180 + 0) / len(self.y_values)
+        print("y:", self.y_values)
+        self.path = path
+        self.trajectory = copy.deepcopy(path)
         self.thrown = True
 
-    def set_direction(self, direction):
+    def set_direction(self, direction, speed):
         if direction == right:
-            self.change_x = 8
+            self.change_x = 0
             # self.angle = -45
+            self.angle = 0
             self.center_x = self.parent.right
             self.center_y = self.parent.center_y - 14
         elif direction == left:
-            self.change_x = -8
+            self.change_x = 0
             # self.angle = 90 + 45
+            self.angle = 90
             self.center_x = self.parent.left
             self.center_y = self.parent.center_y - 10
 
@@ -85,52 +122,6 @@ class ThrowingKnife(arcade.Sprite):
         adj = y - self.parent.center_x
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-class Slash(arcade.Sprite):
-    def __init__(self, x, y):
-        super().__init__("resources/sprites/dagger_slash/0.png", scale=.5)
-        self.center_x, self.center_y = x, y
-        self.path = "resources/sprites/dagger_slash/"
-        self.animation_length = 4
-        self.animation_speed = 5
-        self.textures = [arcade.load_texture_pair(f"{self.path}{x}.png") for x in range(self.animation_length)]
-        self.cur_texture_index = 0
-        self.frame = 0
-        self.complete = False
-        self.direction = 0
-
-    def update_animation(self, delta_time: float = 1/60):
-        self.frame += 1
-        if self.frame >= frames_per_update * self.animation_length:
-            print("complete")
-            self.frame = 0
-            self.complete = True
-
-        # print(f"frame:{self.frame}")
-        self.cur_texture_index = self.frame // frames_per_update
-        # print(self.cur_texture_index)
-        self.texture = self.textures[self.cur_texture_index][self.direction]
-        if self.cur_texture_index > self.animation_length -1:
-            self.cur_texture_index = 0
-
-    def is_complete(self):
-        return self.complete
 
 
 

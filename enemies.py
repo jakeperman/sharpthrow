@@ -15,7 +15,7 @@ class Goblin(arcade.AnimatedWalkingSprite):
         self.center_x, self.center_y = x, y
         # path to texture folder
         texture_path = "resources/sprites/goblin/"
-        self.animation_length = 2
+        self.animation_length = 1
         # load the textures for animation during standing, walking, and attacking
         self.stand_right_textures = [arcade.load_texture(f"{texture_path}walk/0.png")]
         self.stand_left_textures = [arcade.load_texture(f"{texture_path}walk/0.png", mirrored=True)]
@@ -106,6 +106,11 @@ class Goblin(arcade.AnimatedWalkingSprite):
             elif object.center_x > self.center_x:
                 self.running = True
                 self.base_velocity = 6
+
+class Doggart(arcade.Sprite):
+    def __init__(self):
+        super().__init__("resources/sprites/doggart.png")
+
 
 
 class EnemyPhysics:
