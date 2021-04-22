@@ -37,89 +37,53 @@ class ThrowingKnife(arcade.Sprite):
                 self.thrown = False
 
     def attack(self, x, y):
-        print(f"player (x, y): ({self.parent.center_x, self.parent.center_y})")
-        print(f"target (x, y): ({x, y})")
-        # self.change_y = 20
-        # move the dagger in sync with the players movement
         self.target_x, self.target_y = x, y
-        self.set_direction(self.direction, 0)
-        # create the throwing trajectory
+        # calculate direction to throw
+        if self.parent.center_x < x:
+            self.direction = right
+        elif self.parent.center_x > x:
+            self.direction = left
+        # set directions for player and self
+        self.parent.set_direction(self.direction)
+        self.set_direction(self.direction)
+        # calculate the angle the projectile was thrown
         ang = physics.get_triangle(self.parent.center_x, x, self.parent.center_y, y, 100)
+        # get calculated triangle and angle thrown
         self.tri = ang[1]
         self.ang = ang[0]
-        path = physics.distance_trajectory(self.parent.center_x, self.parent.center_y, 30, ang[0], 3, show=False)
+        # set the velocity equal to the hypotenuse * 2.5
+        v = ang[2][2] * 2.5
+        # maximum velocity
+        if v > 35:
+            v = 35
+        # get the path for the knife to follow
+        path = physics.distance_trajectory(self.parent.center_x, self.parent.center_y, v, ang[0], 3, show=False)
+        # generate y-values above player
         self.y_values = [y[1] for y in path if y[1] >= self.parent.bottom]
-        print("y_vals:", len(self.y_values))
-
-
+        # set initial angle of the knife
         self.angle = self.ang - 45
-
+        # calculate how much to change the angle each update
         if 80 < self.ang < 90:
             self.ang_change = 180/45
         else:
             self.ang_change = 180 / 50
-        # if self.ang <= 30:
-        #     self.ang_change = (90 - (self.angle + 45)) / len(self.y_values)
-        # elif 30 < self.ang <= 50:
-        #     self.ang_change = (90 - self.angle) / len(self.y_values)
-        # elif 50 < self.ang <= 60:
-        #     self.ang_change = (180 - (self.angle + 45)) / len(self.y_values)
-        # elif 60 < self.ang <= 66:
-        #     self.ang_change = (90 - (self.angle - 45 -5)) / len(self.y_values)
-        # elif 66 < self.ang <= 74:
-        #     self.ang_change = (180 - (self.angle + 45 - 25)) / len(self.y_values)
-        # elif 74 < self.ang <= 80:
-        #     self.ang_change = (180 - (self.angle -15)) / len(self.y_values)
-        # else:
-        #     self.ang_change = (180 + 0) / len(self.y_values)
-        print("y:", self.y_values)
+        # external access variables
         self.path = path
         self.trajectory = copy.deepcopy(path)
         self.thrown = True
 
-    def set_direction(self, direction, speed):
+    def set_direction(self, direction):
         if direction == right:
             self.change_x = 0
-            # self.angle = -45
             self.angle = 0
             self.center_x = self.parent.right
             self.center_y = self.parent.center_y - 14
         elif direction == left:
             self.change_x = 0
-            # self.angle = 90 + 45
             self.angle = 90
             self.center_x = self.parent.left
             self.center_y = self.parent.center_y - 10
 
-    def calc_para(self, vertex: tuple):
-        range = self.range * 64
-        min_y = self.parent.center_y - 32
-        h, k = vertex
-        diff = h - self.parent.center_x
-        # print("diff", diff)
-        if diff > 200:
-            print(f"h_before{h}")
-            nr = (diff - 350)
-            h = self.parent.center_x + 150
-            k += 100
-            print(f"h_after{h}")
-        elif diff < 38:
-            print(f"diff: {diff}")
-            h = self.parent.center_x + 50
-
-        a = -1/50
-        x = np.linspace(self.parent.center_x, h + range, 100)
-        # y = -x**2
-        y = a * (x - h) ** 2 + k
-        points = [(xp, yp) for xp, yp in zip(x, y) if yp >= min_y]
-        return points
-
-
-
-    def triangulate(self, point: tuple):
-        x, y = point
-        opp = x - self.parent.center_y
-        adj = y - self.parent.center_x
 
 
 

@@ -108,9 +108,10 @@ class Goblin(arcade.AnimatedWalkingSprite):
                 self.base_velocity = 6
 
 class Doggart(arcade.Sprite):
-    def __init__(self):
-        super().__init__("resources/sprites/doggart.png")
-
+    def __init__(self, x, y):
+        super().__init__("resources/sprites/doggart.png", .75)
+        self.change_x = 2
+        self.center_x, self.center_y = x, y
 
 
 class EnemyPhysics:

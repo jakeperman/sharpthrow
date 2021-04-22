@@ -81,7 +81,7 @@ def get_triangle(x1, x2, y1, y2, r):
     degrees = angle * (180/math.pi)
     # print("radians:", angle)
     # print("degrees:", angle * (180/math.pi))
-    return degrees, points
+    return degrees, points, sides
 
 
 def distance_trajectory(x0, y0, v0, angle, gravity, show=False):

@@ -51,10 +51,10 @@ class Player(arcade.AnimatedWalkingSprite):
 
     def update(self):
         # if player is going left
-        if self.change_x < 0:
+        if self.change_x < -.1:
             self.direction = left
         # if player is going right
-        elif self.change_x > 0:
+        elif self.change_x > .1:
             self.direction = right
         if self.last_direction != self.direction:
             self.changed_direction = True
@@ -74,10 +74,6 @@ class Player(arcade.AnimatedWalkingSprite):
                 self.weapons.pop(0)
             self.weapons.update()
 
-        # attack
-        if self.should_attack:
-            self.attack()
-            self.should_attack = False
         self.last_direction = self.direction
 
         # print("center_x", self.center_x)
@@ -93,6 +89,15 @@ class Player(arcade.AnimatedWalkingSprite):
                 self.atk_index = 0
                 self.attacking = False
 
+    def speed_x(self, v):
+        self.change_x = v
+
+    def speed_y(self, v):
+        self.change_y = v
+
+    def set_direction(self, direction):
+        self.direction = direction
+        self.update_animation()
 
 
 
@@ -126,7 +131,6 @@ class Player_old(arcade.Sprite):
         for i in range(2):
             t = arcade.load_texture_pair(f"resources/sprites/player/{i}.png", "Simple")
             self.running_textures.append(t)
-        print(self.running_textures)
         self.texture = self.running_textures[1][0]
 
         self.win_x = x
