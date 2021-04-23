@@ -7,6 +7,8 @@ from debug import *
 import arcade.gui
 import timeit
 import time
+from physics import PhysicsEngine
+import physics
 from arcade.gui import UIManager
 import random
 import inspect
@@ -51,6 +53,7 @@ class Game(arcade.Window):
         self.right_view = SW
         self.left_view = 0
         self.top_view = SH
+        self.player_speed = PLAYER_SPEED
         self.bottom_view = 0
         self.set_vsync(True)
         self.left_boundary = 0
@@ -69,6 +72,7 @@ class Game(arcade.Window):
         self.local_debugger.disable()
         self.score = 0
         self.mouse_pos = (0, 0)
+        self.show_trail = False
 
         # --- Variables for our statistics
 
@@ -82,6 +86,7 @@ class Game(arcade.Window):
         self.frame_count = 0
         self.fps_start_timer = None
         self.fps = None
+        self.weapon_traject: physics.ProjectileTrajectory = None
 
         # self.d = Debug(self)
 
@@ -95,8 +100,8 @@ class Game(arcade.Window):
         self.players.append(self.player)
 
         self.controls = {
-            'a': {'func': self.player.speed_x, 'param': -PLAYER_SPEED},
-            'd': {'func': self.player.speed_x, 'param': PLAYER_SPEED}
+            'a': {'func': self.player.speed_x, 'param': -self.player_speed},
+            'd': {'func': self.player.speed_x, 'param': self.player_speed}
         }
         # self.enemies.append(Goblin(2000, 320))
         # self.enemies.update_animation()
@@ -112,6 +117,7 @@ class Game(arcade.Window):
         # set the players weapon
         # self.player.weapon = Dagger(self.player.right, self.player.center_y, self.player)
         self.player.weapon = ThrowingKnife(self.player)
+        self.physics = PhysicsEngine(self.player, self.ground_list)
 
     def on_draw(self):
         # Start timing how long this takes
@@ -141,14 +147,14 @@ class Game(arcade.Window):
 
         if self.player.weapons:
             self.player.weapons.draw()
-            if self.math_stats:
-                p = self.player.weapons[-1].tri
-                p2 = self.player.weapons[-1].trajectory
-                a = self.player.weapons[-1].ang
-                arcade.draw_polygon_outline(p, arcade.color.PURPLE, 2)
-                arcade.draw_points(p2, arcade.color.GOLD, 3)
+            if self.stats_loaded:
+                arcade.draw_polygon_outline(self.triangle, arcade.color.PURPLE, 2)
+                arcade.draw_points(self.weapon_traject, arcade.color.GOLD, 3)
                 self.player.draw_hit_box(arcade.color.RED, 1)
-                arcade.draw_text(f"{a:.1f}°", self.player.center_x, self.player.center_y + 40, arcade.color.RED, 8, anchor_x="center")
+                arcade.draw_text(f"{self.weapon_angle:.1f}°", self.player.center_x, self.player.center_y + 40, arcade.color.RED, 8, anchor_x="center")
+
+        if self.trail_loaded:
+            self.weapon_traject.draw()
 
         # if self.player.attacking:
         # self.player.weapon.draw()
@@ -166,14 +172,14 @@ class Game(arcade.Window):
         if self.perf_stats:
             # Display timings
             output = f"Processing time: {self.processing_time:.3f}"
-            arcade.draw_text(output, self.left_view + 20, self.top_view - 75 - 25, arcade.color.BLACK, 18)
+            arcade.draw_text(output, self.left_view + 10, self.top_view - 25, arcade.color.BLACK, 18)
 
             output = f"Drawing time: {self.draw_time:.3f}"
-            arcade.draw_text(output, self.left_view + 20, self.top_view - 75 - 50, arcade.color.BLACK, 18)
+            arcade.draw_text(output, self.left_view + 10, self.top_view - 50, arcade.color.BLACK, 18)
 
             if self.fps is not None:
                 output = f"FPS: {self.fps:.0f}"
-                arcade.draw_text(output, self.left_view + 20, self.top_view - 75, arcade.color.BLACK, 18)
+                arcade.draw_text(output, self.left_view + 10, self.top_view - 75, arcade.color.BLACK, 18)
 
         # Stop the draw timer, and calculate total on_draw time.
         self.draw_time = timeit.default_timer() - start_time
@@ -181,6 +187,7 @@ class Game(arcade.Window):
     def on_update(self, delta_time: float):
         # Start timing how long this takes
         start_time = timeit.default_timer()
+
         if self.frame > 60:
             self.frame = 0
         # get screen scroll boundaries
@@ -192,15 +199,45 @@ class Game(arcade.Window):
                 knives = arcade.check_for_collision_with_list(knife, self.ground_list)
                 if knives:
                     knife.thrown = False
-        print(f"time to process weapons: {time.perf_counter() - x}")
+        self.trail_loaded = False
+        if self.show_trail:
+            x, y = self.mouse_pos
+            self.weapon_traject = self.physics.get_trajectory(x, y)
+            self.trail_loaded = True
+
+
+        # print(f"time to process weapons: {time.perf_counter() - x}")
+        self.stats_loaded = False
+
+        if self.math_stats:
+            self.stats_loaded = True
+            self.triangle = self.player.weapons[-1].tri
+            self.weapon_traject = self.player.weapons[-1].trajectory
+            self.weapon_angle = self.player.weapons[-1].ang
+
+
+        target_speed = PLAYER_SPEED * 60
+        # print(f"target_speed: {target_speed / 60}")
+        speed = target_speed * delta_time
+        # print(f"actual_speed: {speed} ")
+        self.player_speed = speed
+
+        # self.controls['a']['param'] = -self.player_speed
+        # print("a param:", self.controls['a']['param'])
+        # self.controls['d']['param'] = self.player_speed
+        # print("p_speed", self.player.change_x)
+        # print("d_time", delta_time)
+
 
         if not self.game_over:
-
             self.player.update()
             self.player.update_animation()
             self.physics_engine.update()
+
             # self.enemy_physics_engine.update()
             # self.enemies.update_animation()
+
+
 
         # screen scrolling system
         changed = self.scroll_screen()
@@ -274,6 +311,7 @@ class Game(arcade.Window):
         if key in list(self.controls.keys()):
             self.keys_pressed.insert(0, key)
             self.key_change()
+            # self.key_change()
             # move left/right
 
         # if player presses space, and jump conditions are met, jump
@@ -302,6 +340,7 @@ class Game(arcade.Window):
         if key in self.keys_pressed:
             self.keys_pressed.remove(key)
             self.key_change()
+            # self.key_change()
         # if "ad" not in self.keys_pressed:
         #     self.player.change_x = 0
 
@@ -315,10 +354,30 @@ class Game(arcade.Window):
         # tell player to attack
 
         # self.player.should_attack = True
-        x = x + (self.right_view - SW)
-        y = y + (self.top_view - SH)
-        self.player.attack(x ,y)
-        # kill goblin if player is within range and attacks
+        if button == 1:
+            x = x + (self.right_view - SW)
+            y = y + (self.top_view - SH)
+            self.player.attack(x, y)
+
+        elif button == 4:
+            x = x + (self.right_view - SW)
+            y = y + (self.top_view - SH)
+            self.show_trail = True
+
+            # self.player.attack(x, y)
+
+
+    def on_mouse_release(self, x: float, y: float, button: int,
+                         modifiers: int):
+
+        if button == 4:
+            x = x + (self.right_view - SW)
+            y = y + (self.top_view - SH)
+            self.player.attack(x, y)
+            # print(len(self.weapon_path))
+            self.show_trail = False
+        pass
+
     def on_mouse_motion(self, x: float, y: float, dx: float, dy: float):
         x = x + (self.right_view - SW)
         y = y + (self.top_view - SH)

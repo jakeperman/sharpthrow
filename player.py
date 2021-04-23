@@ -1,5 +1,5 @@
 import arcade
-from items import *
+from items import ThrowingKnife
 FRAMES_PER_UPDATE = 5
 FPU = FRAMES_PER_UPDATE
 left = 1
@@ -40,6 +40,7 @@ class Player(arcade.AnimatedWalkingSprite):
         self.attacking = False
         self.prev_index = 0
         self.actual_y = 0
+        self.physics_engine = None
 
     # attack with the players weapon
     def attack(self, x, y):
@@ -47,7 +48,12 @@ class Player(arcade.AnimatedWalkingSprite):
         # self.weapon.attack()
         knife = ThrowingKnife(self)
         self.weapons.append(knife)
-        knife.attack(x, y)
+        self.weapon = knife
+        self.physics_engine.throw_knife(knife, x, y)
+
+    def set_weapon(self, x, y):
+        # self.weapon =
+        pass
 
     def update(self):
         # if player is going left
@@ -70,7 +76,7 @@ class Player(arcade.AnimatedWalkingSprite):
 
         # set correct direction to update weapon
         if self.weapons:
-            if len(self.weapons) > 8 :
+            if len(self.weapons) > 8:
                 self.weapons.pop(0)
             self.weapons.update()
 
@@ -118,90 +124,7 @@ class Player(arcade.AnimatedWalkingSprite):
 
 
 
-class Player_old(arcade.Sprite):
-    def __init__(self, x, y, scale):
-        super().__init__()
-        self.center_x, self.center_y = x, y
-        self.scale = scale
-        self.current_texture = 0
-        self.can_jump = True
-        self.direction_facing = 0
-        # self.direction_textures = arcade.load_texture_pair("resources/sprites/char4x.png", "Simple")
-        self.running_textures = []
-        for i in range(2):
-            t = arcade.load_texture_pair(f"resources/sprites/player/{i}.png", "Simple")
-            self.running_textures.append(t)
-        self.texture = self.running_textures[1][0]
 
-        self.win_x = x
-        self.max_hp = 10
-        self.hp = self.max_hp
-        self.walk_frame = 0
-        self.frame = 0
-        self.weapon = None
-        self.should_attack = False
-
-    def update(self):
-        # self.center_x += self.change_x
-        # self.center_y += self.change_y
-        if self.hp <= 0:
-            self.hp = 0
-        if self.should_attack:
-            self.attack()
-            self.should_attack = False
-        if self.weapon is Sword:
-            if self.direction_facing == 0:
-                self.weapon.center_x, self.weapon.center_y = self.right + 2, self.center_y - 5
-            elif self.direction_facing == 1:
-                self.weapon.center_x, self.weapon.center_y = self.left, self.center_y
-        else:
-            if self.direction_facing == 0:
-                self.weapon.center_x, self.weapon.center_y = self.right + 2, self.center_y - 12
-            elif self.direction_facing == 1:
-                self.weapon.center_x, self.weapon.center_y = self.left, self.center_y - 12
-        self.weapon.direction_facing = self.direction_facing
-        self.weapon.update()
-        # self.weapon.update()
-
-
-    def update_animation(self, delta_time: float = 1/60):
-        left, right = 1, 0
-        # calculate if frame needs to be updated
-        d_time = 60 // UPDATES_PER_FRAME
-        if self.frame % d_time == 0:
-            if self.walk_frame:
-                self.walk_frame = 0
-            else:
-                self.walk_frame = 1
-        # set idle texture
-        if self.change_x == 0:
-            self.texture = self.running_textures[0][self.direction_facing]
-
-        # set walking textures
-        if self.change_x < 0:
-            self.texture = self.running_textures[self.walk_frame][1]
-            self.hit_box = self.texture.hit_box_points
-            self.direction_facing = left
-        elif self.change_x > 0:
-            self.texture = self.running_textures[self.walk_frame][0]
-            self.hit_box = self.texture.hit_box_points
-            self.direction_facing = right
-
-        self.frame += 1
-
-
-    def attack(self):
-        self.weapon.direction_facing = self.direction_facing
-        self.weapon.slash()
-
-
-
-        # swing = 10
-        # for x in range(10):
-        #     self.weapon.center_x += 10
-        #     # self.weapon.draw()
-        # self.weapon.angle = 0
-        pass
 
 
 
