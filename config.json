@@ -1,0 +1,7 @@
+{
+    "player": {
+        "hp": 10,
+        "knife": "ThrowingKnife",
+        "level": 1
+    }
+}
