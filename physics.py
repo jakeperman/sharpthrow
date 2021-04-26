@@ -5,10 +5,9 @@ import items
 import matplotlib.pyplot as mp
 from player import Player
 import time
-left = 1
-right = 0
 
-
+left = -1
+right = 1
 
 
 class PhysicsEngine:
@@ -31,7 +30,14 @@ class PhysicsEngine:
         pass
 
     def get_end_point(self, trajectory, return_index: bool = False):
-        index = trajectory.index([p for p in trajectory if arcade.get_sprites_at_point(p, self.ground_list)][0])
+        index = [p for p in trajectory if arcade.get_sprites_at_point(p, self.ground_list)]
+        if index:
+            index = trajectory.index(index[0])
+        else:
+            if return_index:
+                return len(trajectory) - 1
+            else:
+                return trajectory[-1]
         if return_index:
             return index
         return trajectory[index]
@@ -50,6 +56,7 @@ class PhysicsEngine:
     def throw_knife(self, knife: items.ThrowingKnife, x0, y0):
         # create a triangle between the player, a space in front of player, and mouse position
         tri = Triangle(self.player.center_x, x0, self.player.center_y, y0, 100)
+        knife.tri = tri
         # set appropriate directions
         if self.player.center_x < x0:
             direction = right
@@ -73,20 +80,30 @@ class PhysicsEngine:
         return path
 
 
-
-class ProjectileTrajectory:
-    def __init__(self, x0, y0, v0, angle, gravity, physics_engine: PhysicsEngine = None):
+class Trajectory:
+    def __init__(self, x0, y0, v0, angle, gravity):
         self.x0, self.y0, self.v0, self.angle, self.gravity = x0, y0, v0, angle, gravity
         self.trajectory = Geometry.distance_trajectory(x0, y0, v0, angle, gravity)
-        if physics_engine:
-            self.physics_engine = physics_engine
+
+    def get_path(self):
+        return self.trajectory
+
+
+class ProjectileTrajectory(Trajectory):
+    def __init__(self, x0, y0, v0, angle, gravity, physics_engine: PhysicsEngine):
+        super().__init__(x0, y0, v0, angle, gravity)
+        self.trajectory = Geometry.distance_trajectory(x0, y0, v0, angle, gravity)
+        self.physics_engine = physics_engine
 
     def draw(self):
         end_point = self.physics_engine.get_end_point(self.trajectory, return_index=True)
         new_path = self.trajectory[:end_point]
         arcade.draw_points(new_path, arcade.color.GOLD, 3)
 
-    def get_path(self):
+    def slice(self):
+        end_point = self.physics_engine.get_end_point(self.trajectory, return_index=True)
+        new_path = self.trajectory[:end_point]
+        self.trajectory = new_path
         return self.trajectory
 
 
@@ -98,7 +115,7 @@ class Triangle:
         self.sides = self.shape[2]
 
     def draw(self):
-        arcade.draw_polygon_outline(self.shape, arcade.color.PURPLE, 1)
+        arcade.draw_polygon_outline(self.points, arcade.color.PURPLE, 1)
 
     def get_shape(self):
         return self.shape
@@ -106,21 +123,19 @@ class Triangle:
     def hypotenuse(self):
         return self.sides[2]
 
-
-
+    def get_angle(self):
+        return self.angle
 
 
 class Geometry:
 
     @staticmethod
     def get_velocity(x, y):
-        v = (x**2) + (y**2)
-        v = math.sqrt(v)
-        return v
+        return math.sqrt((x ** 2) + (y ** 2))
 
     @staticmethod
     def get_distance(x1, y1, x2, y2):
-        return math.sqrt(((x2 - x1)**2) + ((y2 - y1)**2))
+        return math.sqrt(((x2 - x1) ** 2) + ((y2 - y1) ** 2))
 
     @staticmethod
     def get_angle_b(a, b, c):
@@ -158,13 +173,13 @@ class Geometry:
 
     @staticmethod
     def get_angle_from_velocity(vx, vy):
-        angle = math.atan2(vy,vx)
+        angle = math.atan2(vy, vx)
         angle = math.degrees(angle)
         # angle *= -1
         return angle
 
     @staticmethod
-    def distance_trajectory(x0, y0, v0, angle, gravity, show=False):
+    def distance_trajectory(x0, y0, v0, angle, gravity, show=False, floor=0):
         x_coords = []
         y_coords = []
         # get the x and y velocities
@@ -173,20 +188,22 @@ class Geometry:
         g = gravity
         t = 0  # time starts at 0
         y = 0
-        while y >= 0:
+        s = time.perf_counter()
+        while y >= floor:
             t += .5  # add time (higher values = less points calculated, which is faster)
             x = x0 + vx * t  # calculate x position
             y = y0 + (vy * t) - ((.5 * g) * (t ** 2))  # calculate y position
             x_coords.append(x)
             y_coords.append(y)
         # plot the trajectory and show it
-        if show:
-            x = np.array(x_coords)
-            y = np.array(y_coords)
-            mp.plot(x, y)
-            mp.show()
+        # if show:
+        #     x = np.array(x_coords)
+        #     y = np.array(y_coords)
+        #     mp.plot(x, y)
+        #     mp.show()
         points = [(x, y) for x, y in zip(x_coords, y_coords)]
         return points
+
 
 # def get_path(self, x1, y1, x2, y2, v, rn):
 #     ang = self.get_triangle(x1, x2, y1, y2, rn)
@@ -197,10 +214,10 @@ class Geometry:
 if __name__ == "__main__":
     g = Geometry()
 
-    n = g.calc_para((100, 10), 100, show=True, cutoff=None, scale_x=1, scale_y=1, flip_y=False, flip_x=False)
-    print(n)
+    # calc_para((100, 10), 100, show=True, cutoff=None, scale_x=1, scale_y=1, flip_y=False, flip_x=False)
+    # print(n)
 
-    print(f"start_x: {n[0][0]} end_x: {n[-1][0]}")
+    # print(f"start_x: {n[0][0]} end_x: {n[-1][0]}")
 
 
 # class PhysicsEngine:
@@ -228,13 +245,11 @@ if __name__ == "__main__":
 #         super(ObjectPhysicsEngine, self).__init__()
 
 
-
-
 def calc_para(self, vertex: tuple, distance: float, flip_y: bool = True, flip_x: bool = False,
               cutoff: float = None, precision: float = 1, scale_x=1.0, scale_y=1.0, start: float = 0,
               show: bool = False, preserve: bool = True, output: bool = False):
     h, k = x, y, = vertex
-    half = distance/2
+    half = distance / 2
     if not start:
         start = h - half
     stop = start + distance
@@ -253,11 +268,11 @@ def calc_para(self, vertex: tuple, distance: float, flip_y: bool = True, flip_x:
     # generate list of points for the parabola
 
     if cutoff is not None:
-        y = a * (b*x-h) ** 2 + k
+        y = a * (b * x - h) ** 2 + k
         # y = a * (x - h) ** 2 + (k ** 3)
         points = [(xp, yp) for xp, yp in zip(x, y) if yp >= cutoff]
     else:
-        y = a * (b*x-h) ** 2 + k
+        y = a * (b * x - h) ** 2 + k
         points = [(xp, yp) for xp, yp in zip(x, y)]
     if show:
         x = [x[0] for x in points]

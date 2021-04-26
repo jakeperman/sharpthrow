@@ -4,8 +4,8 @@ import numpy as np
 import copy
 import matplotlib.pyplot as mp
 frames_per_update = 3
-left = 1
-right = 0
+left = -1
+right = 1
 
 
 
@@ -24,6 +24,7 @@ class ThrowingKnife(arcade.Sprite):
         self.speed = 2.5
         self.ang_change = 0
         self.projectile = 0
+        self.tri = None
 
     def update(self):
         # update the position and direction while not attacking
@@ -53,7 +54,7 @@ class ThrowingKnife(arcade.Sprite):
         a = math.degrees(math.atan2(vy, vx))
         # self.a = -(self.a)
         self.ang_change = a * .66
-        if 80 < angle  < 90:
+        if 80 < angle < 90:
             self.ang_change = a * .88
 
     def set_direction(self, direction):
@@ -68,12 +69,3 @@ class ThrowingKnife(arcade.Sprite):
             self.angle = 90
             self.center_x = self.parent.left
             self.center_y = self.parent.center_y - 10
-
-
-
-
-
-
-
-
-

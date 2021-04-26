@@ -2,8 +2,8 @@ import arcade
 from items import ThrowingKnife
 FRAMES_PER_UPDATE = 5
 FPU = FRAMES_PER_UPDATE
-left = 1
-right = 0
+left = -1
+right = 1
 
 
 class Player(arcade.AnimatedWalkingSprite):
@@ -41,6 +41,9 @@ class Player(arcade.AnimatedWalkingSprite):
         self.prev_index = 0
         self.actual_y = 0
         self.physics_engine = None
+        self.can_move = True
+        self.old_weapons = arcade.SpriteList()
+
 
     # attack with the players weapon
     def attack(self, x, y):
@@ -64,7 +67,7 @@ class Player(arcade.AnimatedWalkingSprite):
             self.direction = right
         if self.last_direction != self.direction:
             self.changed_direction = True
-            self.hit_box = self.texture.hit_box_points
+
         else:
             self.changed_direction = False
 
@@ -76,8 +79,8 @@ class Player(arcade.AnimatedWalkingSprite):
 
         # set correct direction to update weapon
         if self.weapons:
-            if len(self.weapons) > 8:
-                self.weapons.pop(0)
+            if len(self.old_weapons) > 1000:
+                self.old_weapons[0].kill()
             self.weapons.update()
 
         self.last_direction = self.direction
@@ -88,8 +91,11 @@ class Player(arcade.AnimatedWalkingSprite):
         super(Player, self).update_animation()
         # if the player is attacking, display the attack animation
         if self.attacking:
+            direct = 0
+            if self.direction == -1:
+                direct = 1
             index = self.atk_index // 3
-            self.texture = self.attacking_textures[self.direction][index]
+            self.texture = self.attacking_textures[direct][index]
             self.atk_index += 1
             if self.atk_index > 6:
                 self.atk_index = 0
@@ -120,11 +126,3 @@ class Player(arcade.AnimatedWalkingSprite):
             #     self.attacking = False
             #     self.weapon.use = False
         # self.hit_box = self.texture.hit_box_points
-
-
-
-
-
-
-
-
