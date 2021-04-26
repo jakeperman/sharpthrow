@@ -44,7 +44,8 @@ class Game(arcade.Window):
         self.enemies = arcade.SpriteList()
         self.controls = {}
         self.player_speed = PLAYER_SPEED
-        self.ground_list = None
+        self.ground_list: arcade.SpriteList = None
+        self.target_list: arcade.SpriteList = None
         self.keys_pressed = []
         self.set_vsync(True)
         self.right_view = SW
@@ -78,16 +79,23 @@ class Game(arcade.Window):
         self.frame_count = 0
         self.fps_start_timer = None
         self.fps = None
-        self.setup()
         self.set_mouse_visible(False)
         self.tri = None
-        self.knife_collisions = False
+        self.knife_collisions = True
+        self.map = {
+            "name": "tutorial",
+            "x_bound": 0,
+            "y_bound": 0
+
+        }
+        self.setup()
 
     def setup(self):
         # create UI
 
         # create the player
-        self.player = Player(1000, 96, SCALE)
+        self.players = arcade.SpriteList()
+        self.player = Player(128, 500, SCALE)
         self.players.append(self.player)
 
         self.controls = {
@@ -99,7 +107,7 @@ class Game(arcade.Window):
             'd': {'func': self.player.speed_x, 'param': .5}
                      }
 
-        self.set_level("level_1")
+        self.set_level("tutorial", 1624, 1088)
 
         # setup the physics engine
         self.physics_engine = arcade.PhysicsEnginePlatformer(self.player, self.ground_list, GRAVITY)
@@ -151,11 +159,12 @@ class Game(arcade.Window):
         if self.player.old_weapons:
             self.player.old_weapons.draw()
 
+        self.players.draw()
+        self.ground_list.draw()
+        self.target_list.draw()
         if self.trail_loaded:
             self.weapon_traject.draw()
 
-        self.players.draw()
-        self.ground_list.draw()
 
         # calculate length of health bar
         box_len = self.player.hp * 10
@@ -203,7 +212,8 @@ class Game(arcade.Window):
             self.player.update()
             self.player.update_animation()
             self.physics_engine.update()
-
+        if self.player.center_y < 200:
+            self.setup()
         # screen scrolling system
         changed = self.scroll_screen()
         self.set_projectile()
@@ -211,11 +221,11 @@ class Game(arcade.Window):
         if self.bottom_view < 0:
             self.bottom_view = 0
             self.top_view = self.bottom_view + SH
-        elif self.top_view > 1230:
-            self.top_view = 1230
+        elif self.top_view > self.map['y_bound']:
+            self.top_view = self.map['y_bound']
             self.bottom_view = self.top_view - SH
-        if self.left_view + SW >= 2550:
-            self.left_view = 2550 - SW
+        if self.right_view >= self.map['x_bound']:
+            self.left_view = self.map['x_bound'] - SW
             self.right_view = self.left_view + SW
         elif self.left_view < 0:
             self.left_view = 0
@@ -280,13 +290,17 @@ class Game(arcade.Window):
 
 
 
-    def set_level(self, map):
+    def set_level(self, map, bound_x, bound_y):
+        self.map['name'] = map
+        self.map['x_bound'] = bound_x
+        self.map['y_bound'] = bound_y
         map_name = f"resources/maps/{map}.tmx"  # map file
         # read the map
         level_map = arcade.tilemap.read_tmx(map_name)
         # generate the tiles for the ground, and for ladders
         self.ground_list = arcade.tilemap.process_layer(map_object=level_map, layer_name="ground", scaling=BLOCK_SCALE,
                                                         use_spatial_hash=True, hit_box_algorithm="Simple")
+        self.target_list = arcade.tilemap.process_layer(map_object=level_map, layer_name="targets", scaling=BLOCK_SCALE, use_spatial_hash=True)
 
 
     def on_key_press(self, symbol: int, modifiers: int):
@@ -320,7 +334,8 @@ class Game(arcade.Window):
                 self.knife_collisions = True
         elif symbol == arcade.key.N:
             print(f"Number of knives: {len(self.player.old_weapons)}")
-
+        elif symbol == arcade.key.R:
+            self.setup()
 
     def on_key_release(self, symbol: int, modifiers: int):
         key = chr(symbol)
