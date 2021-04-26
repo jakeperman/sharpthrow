@@ -318,6 +318,8 @@ class Game(arcade.Window):
                 self.knife_collisions = False
             else:
                 self.knife_collisions = True
+        elif symbol == arcade.key.N:
+            print(f"Number of knives: {len(self.player.old_weapons)}")
 
 
     def on_key_release(self, symbol: int, modifiers: int):
