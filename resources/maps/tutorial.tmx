@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.5" tiledversion="1.5.0" orientation="orthogonal" renderorder="right-down" width="50" height="35" tilewidth="64" tileheight="64" infinite="0" nextlayerid="4" nextobjectid="1">
+ <tileset firstgid="1" source="sharpshoot_tiles.tsx"/>
+ <layer id="1" name="ground" width="50" height="35">
+  <data encoding="base64" compression="zlib">
+   eJzt2cEKgCAQhOE1KPD9X7ggusRq5WiOMj/sKQQ/9VY0szjJjJ4cXMnBlRx1C+B6FscCrpejvGD4O7rXw4GevZcc5Y3kyL3/kRzIXtdjto9rUEfq3FuceS7UkdqvHH5Pb62V4+/kOOvhCM5cDu/bm5nlPliSgys5uJKDKzm4koOr3v+Pas4OGYAGJQ==
+  </data>
+ </layer>
+ <layer id="3" name="walls" width="50" height="35">
+  <data encoding="base64" compression="zlib">
+   eJztwYEAAAAAw6D5Ux/hAlUBAAAAAAAAzwAbWAAB
+  </data>
+ </layer>
+ <layer id="2" name="targets" width="50" height="35">
+  <data encoding="base64" compression="zlib">
+   eJzt0yEBAAAIBDE8/fuSARAgtgQv7iMAgEt5PQCe8AWmtMOGfgAAgI4C1BIALQ==
+  </data>
+ </layer>
+</map>
