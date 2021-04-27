@@ -11,17 +11,22 @@ right = 1
 
 
 class PhysicsEngine:
-    def __init__(self, player: Player, ground: arcade.SpriteList, enemies: arcade.SpriteList = None):
+    def __init__(self, player: Player, ground: arcade.SpriteList, targets: arcade.SpriteList, map, enemies: arcade.SpriteList = None):
         self.player = player
         self.ground_list = ground
+        self.target_list = targets
         self.objects = arcade.SpriteList()
         self.player.physics_engine = self
+        self.collider = map['collisions']
 
     def update(self):
         self.player.update()
         self.ground_list.update()
         if self.objects:
             self.objects.update()
+
+    def update_ground(self, ground_list):
+        self.ground_list = ground_list
 
     def check_for_collision(self, sprite1, sprite2):
         pass
@@ -42,6 +47,20 @@ class PhysicsEngine:
             return index
         return trajectory[index]
 
+    def get_last_point(self, trajectory, return_index: bool = False):
+        index = [p for p in trajectory if arcade.get_sprites_at_point(p, self.target_list)]
+        if index:
+            index = trajectory.index(index[0])
+        else:
+            if return_index:
+                return len(trajectory) - 1
+            else:
+                return trajectory[-1]
+        if return_index:
+            return index
+        return trajectory[index]
+
+
     def draw_trajectory(self, trajectory):
         end = self.get_end_point(trajectory, return_index=True)
         path = trajectory[:end]
@@ -57,6 +76,7 @@ class PhysicsEngine:
         # create a triangle between the player, a space in front of player, and mouse position
         tri = Triangle(self.player.center_x, x0, self.player.center_y, y0, 100)
         knife.tri = tri
+        dtime = Geometry.get_time(knife.speed, knife.range)
         # set appropriate directions
         if self.player.center_x < x0:
             direction = right
@@ -67,20 +87,42 @@ class PhysicsEngine:
         knife.set_direction(direction)
         # calculate velocity
         v = tri.hypotenuse() * knife.speed
+        if v > knife.max_velocity:
+            v = knife.max_velocity
         angle = tri.angle
-        path = ProjectileTrajectory(self.player.center_x, self.player.center_y, v, angle, 3, self)
+        time_inc = .1
+        path = ProjectileTimeTrajectory(self.player.center_x, self.player.center_y, v, angle, 3, dtime, self, time_inc=time_inc)
+        path.slice(collider=self.collider)
+        n = int(.5/time_inc)
+        path.cut(n)
+        p = path.get_path()
+        dx = abs(p[-1][0] - p[0][0])
+        dy = abs(p[-1][1] - p[0][1])
+        a = math.degrees(math.atan2(v, 3))
+        a_change = a
         knife.set_angle(v, 3, angle)
+        # knife.set_ang_change(angle, a_change)
         knife.throw(path)
 
-    def get_trajectory(self, x0, y0, sp=2.5):
+    def get_distance_trajectory(self, x0, y0, knife, sp=2.5):
         tri = Triangle(self.player.center_x, x0, self.player.center_y, y0, 100)
         v = tri.hypotenuse() * sp
         ang = tri.angle
-        path = ProjectileTrajectory(self.player.center_x, self.player.center_y, v, ang, 3, self)
+        path = ProjectileDistanceTrajectory(self.player.center_x, self.player.center_y, v, ang, 3, self)
+        return path
+
+    def get_time_trajectory(self, x0, y0, knife):
+        tri = Triangle(self.player.center_x, x0, self.player.center_y, y0, 100)
+        v = tri.hypotenuse() * knife.speed
+        if v > knife.max_velocity:
+            v = knife.max_velocity
+        dtime = Geometry.get_time(knife.speed, knife.range)
+        ang = tri.angle
+        path = ProjectileTimeTrajectory(self.player.center_x, self.player.center_y, v, ang, 3, dtime, self, time_inc=.5)
         return path
 
 
-class Trajectory:
+class DistanceTrajectory:
     def __init__(self, x0, y0, v0, angle, gravity):
         self.x0, self.y0, self.v0, self.angle, self.gravity = x0, y0, v0, angle, gravity
         self.trajectory = Geometry.distance_trajectory(x0, y0, v0, angle, gravity)
@@ -89,10 +131,41 @@ class Trajectory:
         return self.trajectory
 
 
-class ProjectileTrajectory(Trajectory):
+class TimeTrajectory:
+    def __init__(self, x0, y0, v0, angle, gravity, dtime, time_inc):
+        self.x0, self.y0, self.v0, self.angle, self.gravity = x0, y0, v0, angle, gravity
+        self.trajectory = Geometry.time_trajectory(x0, y0, v0, angle, gravity, dtime, time_inc=time_inc)
+
+    def get_path(self):
+        return self.trajectory
+
+
+class ProjectileTimeTrajectory(TimeTrajectory):
+    def __init__(self, x0, y0, v0, angle, gravity, dtime, physics_engine: PhysicsEngine, time_inc=.25):
+        super().__init__(x0, y0, v0, angle, gravity, dtime, time_inc)
+        self.physics_engine = physics_engine
+
+    def draw(self):
+        end_point = self.physics_engine.get_end_point(self.trajectory, return_index=True)
+        new_path = self.trajectory[:end_point]
+        arcade.draw_points(new_path, arcade.color.GOLD, 3)
+
+    def slice(self, collider="block"):
+        end_point = self.physics_engine.get_last_point(self.trajectory, return_index=True)
+        if collider == "block":
+            end_point = self.physics_engine.get_end_point(self.trajectory, return_index=True)
+        new_path = self.trajectory[:end_point]
+        self.trajectory = new_path
+        return self.trajectory
+
+    def cut(self, num):
+        old = self.trajectory[-2:]
+        self.trajectory = self.trajectory[::num]
+        self.trajectory = self.trajectory + old
+
+class ProjectileDistanceTrajectory(DistanceTrajectory):
     def __init__(self, x0, y0, v0, angle, gravity, physics_engine: PhysicsEngine):
         super().__init__(x0, y0, v0, angle, gravity)
-        self.trajectory = Geometry.distance_trajectory(x0, y0, v0, angle, gravity)
         self.physics_engine = physics_engine
 
     def draw(self):
@@ -183,6 +256,7 @@ class Geometry:
         x_coords = []
         y_coords = []
         # get the x and y velocities
+        # v0 = v0 / (precision / .5)
         vx = v0 * math.cos(math.radians(angle))
         vy = v0 * math.sin(math.radians(angle))
         g = gravity
@@ -190,7 +264,7 @@ class Geometry:
         y = 0
         s = time.perf_counter()
         while y >= floor:
-            t += .5  # add time (higher values = less points calculated, which is faster)
+            t += .5 # add time (higher values = less points calculated, which is faster)
             x = x0 + vx * t  # calculate x position
             y = y0 + (vy * t) - ((.5 * g) * (t ** 2))  # calculate y position
             x_coords.append(x)
@@ -204,6 +278,31 @@ class Geometry:
         points = [(x, y) for x, y in zip(x_coords, y_coords)]
         return points
 
+    @staticmethod
+    def time_trajectory(x0, y0, v0, angle, gravity, dtime, time_inc):
+        x_coords = []
+        y_coords = []
+        # get the x and y velocities
+        # v0 = v0 / (time_inc / .5)
+        vx = v0 * math.cos(math.radians(angle))
+        vy = v0 * math.sin(math.radians(angle))
+        g = gravity
+        t = 0  # time starts at 0
+        y = 0
+        s = time.perf_counter()
+        while t <= dtime:
+            t += time_inc  # add time (higher values = less points calculated, which is faster)
+            x = x0 + vx * t  # calculate x position
+            y = y0 + (vy * t) - ((.5 * g) * (t ** 2))  # calculate y position
+            x_coords.append(x)
+            y_coords.append(y)
+        points = [(x, y) for x, y in zip(x_coords, y_coords)]
+        return points
+
+    @staticmethod
+    def get_time(velocity, distance):
+        t = distance/velocity
+        return t
 
 # def get_path(self, x1, y1, x2, y2, v, rn):
 #     ang = self.get_triangle(x1, x2, y1, y2, rn)

@@ -3,12 +3,12 @@
  <tileset firstgid="1" source="sharpshoot_tiles.tsx"/>
  <layer id="1" name="ground" width="50" height="35">
   <data encoding="base64" compression="zlib">
-   eJzt2cEKgCAQhOE1KPD9X7ggusRq5WiOMj/sKQQ/9VY0szjJjJ4cXMnBlRx1C+B6FscCrpejvGD4O7rXw4GevZcc5Y3kyL3/kRzIXtdjto9rUEfq3FuceS7UkdqvHH5Pb62V4+/kOOvhCM5cDu/bm5nlPliSgys5uJKDKzm4koOr3v+Pas4OGYAGJQ==
+   eJzt0kEOgDAIRFEw0fsfWV0LTaNoM/W/hFU3MxQzAMDf+OgARZbRAYoo9nCb444Udx+hx/da96/U40nW9ZitKkinbO9KOz9leekRe/vW1Paeocd9HkzrrWdm+Q8AAABc7T9cAE8=
   </data>
  </layer>
  <layer id="3" name="walls" width="50" height="35">
   <data encoding="base64" compression="zlib">
-   eJztwYEAAAAAw6D5Ux/hAlUBAAAAAAAAzwAbWAAB
+   eJzt2cEJACAQA8H72n/DNiG4ygykgH1nzcz6ZK/T0aKjRUeLjhYdLTpadLToaNHRoqNFR4uOFh0tOlp0tOhouf0fndwG9W0F1w==
   </data>
  </layer>
  <layer id="2" name="targets" width="50" height="35">

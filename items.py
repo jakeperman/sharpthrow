@@ -1,8 +1,6 @@
 import arcade
 import math
-import numpy as np
-import copy
-import matplotlib.pyplot as mp
+import random
 frames_per_update = 3
 left = -1
 right = 1
@@ -17,14 +15,17 @@ class ThrowingKnife(arcade.Sprite):
         self.direction = self.parent.direction
         self.attacked = True
         self.thrown = False
-        self.range = 5
         self.target_x, self.target_y = 0, 0
         self.path = []
         self.trajectory = ()
-        self.speed = 2.5
+        self.speed = 2
+        self.range = (1*64)
+        self.max_velocity = 35
         self.ang_change = 0
         self.projectile = 0
         self.tri = None
+        self.sounds = [arcade.Sound(f"resources/sounds/knife_throw{i}.wav") for i in range(3)]
+        self.hit_sound = arcade.Sound("resources/sounds/knife_hit_ground.wav")
 
     def update(self):
         # update the position and direction while not attacking
@@ -44,18 +45,24 @@ class ThrowingKnife(arcade.Sprite):
     def throw(self, trajectory):
         self.projectile = trajectory
         self.path = trajectory.get_path()
+        random.choice(self.sounds).play(.5)
         self.thrown = True
 
-    def set_angle(self, vx, vy, angle):
+    def set_angle(self, dx, dy, angle):
         self.angle = angle - 45
         # if 80 < angle < 95:
         #     self.angle = angle - 90
         # calculate how much to change the angle each update
-        a = math.degrees(math.atan2(vy, vx))
+        a = math.degrees(math.atan2(dx, dy))
         # self.a = -(self.a)
-        self.ang_change = a * .66
-        if 80 < angle < 90:
-            self.ang_change = a * .88
+        self.ang_change = a / (self.range/self.speed)
+        if 80 < angle < 90 or -80 > angle > -90:
+            self.ang_change *= 1.4
+            self.angle += 24
+
+    def set_ang_change(self, ang, change):
+        self.angle = ang - 45
+        self.ang_change = change
 
     def set_direction(self, direction):
         self.direction = direction

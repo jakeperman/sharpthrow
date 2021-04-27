@@ -14,6 +14,8 @@ from arcade.gui import UIManager
 import random
 import inspect
 from perf_stats import *
+from level_select import MyView
+import level_select
 
 SW, SH = 832, 768
 SCALE = 1
@@ -33,21 +35,27 @@ PLAYER_SPEED = 4
 FPS = 60
 
 perf = FpsCounter(0, 768)
-
-
-class Game(arcade.Window):
+class Window(arcade.Window):
     def __init__(self):
-        super().__init__(SW, SH, "Sharpthrow Shawn")
+        super(Window, self).__init__(SW, SH, "Sharpthrow Shawn")
+        self.set_vsync(True)
+        self.set_update_rate(1 / FPS)
+        self.set_mouse_visible(True)
+
+class Game(arcade.View):
+    def __init__(self):
+        super().__init__()
         arcade.set_background_color(arcade.color.CHARCOAL)
         self.player = None
         self.players = arcade.SpriteList()
         self.enemies = arcade.SpriteList()
         self.controls = {}
         self.player_speed = PLAYER_SPEED
-        self.ground_list: arcade.SpriteList = None
-        self.target_list: arcade.SpriteList = None
+        self.ground_list = arcade.SpriteList()
+        self.target_list = arcade.SpriteList()
+        self.wall_list = arcade.SpriteList()
         self.keys_pressed = []
-        self.set_vsync(True)
+
         self.right_view = SW
         self.left_view = 0
         self.top_view = SH
@@ -69,30 +77,44 @@ class Game(arcade.Window):
         # m = pyglet.window.ImageMouseCursor(mc)
         # self.set_mouse_cursor(m)
         # arcade.load_texture('resources/sprites/mouse.png')
+        self.ui_manager = UIManager()
 
         # Time for on_draw
         self.draw_time = 0
         self.cursor = arcade.Sprite("resources/sprites/item/knife.png", .8)
         self.cursor.angle = 80
-        self.set_update_rate(1/FPS)
+
         # Variables used to calculate frames per second
         self.frame_count = 0
         self.fps_start_timer = None
         self.fps = None
-        self.set_mouse_visible(False)
+
         self.tri = None
         self.knife_collisions = True
-        self.map = {
-            "name": "tutorial",
-            "x_bound": 0,
-            "y_bound": 0
+        self.maps = {
+            "tutorial": {
+                "name": "tutorial",
+                "x_bound": 1600,
+                "y_bound": 1088,
+                "collisions": "targets"
+                       },
+            "test": {
+                "name": "level_1",
+                "x_bound": 2500,
+                "y_bound": 1280,
+                "collisions": "block"
+
+            }
 
         }
+
+        self.map = self.maps['tutorial']
         self.setup()
 
     def setup(self):
         # create UI
 
+        # self.ui_manager.add_ui_element(self.button)
         # create the player
         self.players = arcade.SpriteList()
         self.player = Player(128, 500, SCALE)
@@ -107,7 +129,7 @@ class Game(arcade.Window):
             'd': {'func': self.player.speed_x, 'param': .5}
                      }
 
-        self.set_level("tutorial", 1624, 1088)
+        self.set_level(self.map)
 
         # setup the physics engine
         self.physics_engine = arcade.PhysicsEnginePlatformer(self.player, self.ground_list, GRAVITY)
@@ -115,10 +137,8 @@ class Game(arcade.Window):
         # set initial texture
         self.player.update_animation()
         self.player.weapon = ThrowingKnife(self.player)
-        self.physics = PhysicsEngine(self.player, self.ground_list)
+        self.physics = PhysicsEngine(self.player, self.ground_list, self.target_list, self.map)
         self.max_len = self.player.max_hp * 10
-
-        self.cursor_pos = self._mouse_x, self._mouse_y
         self.show_math = False
 
 
@@ -141,6 +161,7 @@ class Game(arcade.Window):
         self.frame_count += 1
 
         arcade.start_render()
+        # self.ui_manager.on_draw()
         # draw score
         # arcade.draw_text(f"Score: {self.score}", self.left_view + SW / 2 - 10, self.top_view - 50, arcade.color.WHITE,
         #                  20)
@@ -162,6 +183,7 @@ class Game(arcade.Window):
         self.players.draw()
         self.ground_list.draw()
         self.target_list.draw()
+        self.wall_list.draw()
         if self.trail_loaded:
             self.weapon_traject.draw()
 
@@ -185,7 +207,7 @@ class Game(arcade.Window):
         if self.fps is not None:
             output = f"FPS: {self.fps:.0f}"
             arcade.draw_text(output, self.left_view + 10, self.top_view - 75, arcade.color.BLACK, 18)
-        self.cursor.draw()
+        # self.cursor.draw()
         # Stop the draw timer, and calculate total on_draw time.
         self.draw_time = timeit.default_timer() - start_time
 
@@ -193,26 +215,38 @@ class Game(arcade.Window):
         start_time = timeit.default_timer()
         # Start timing how long this takes
         changed = False
+        # self.ui_manager.on_update(delta_time)
         x = self.mouse_x + (self.right_view - SW)
         y = self.mouse_y + (self.top_view - SH)
         self.mouse_pos = (x, y)
         self.cursor.position = self.mouse_pos
-
+        # self.button.update_pos(self.right_view - 300, self.top_view - 300)
         if self.player.weapons:
+            # x = time.perf_counter()
+            # print(len(self.player.weapons))
             for knife in self.player.weapons:
-                knives = arcade.check_for_collision_with_list(knife, self.ground_list)
-                if knives:
-                    knife.thrown = False
+                hit_targets = arcade.check_for_collision_with_list(knife, self.target_list)
+                hit_knives = arcade.check_for_collision_with_list(knife, self.player.old_weapons)
+                hit_walls = arcade.check_for_collision_with_list(knife, self.wall_list)
+                if hit_targets or hit_knives:
+                    knife.hit_sound.play(.5)
+                    # knife.thrown = False
                     self.player.old_weapons.append(knife)
+                    self.player.weapons.remove(knife)
                     if self.knife_collisions:
                         self.ground_list.append(knife)
+                elif hit_walls:
                     self.player.weapons.remove(knife)
+
+            # print(f"knife time: {time.perf_counter() - x}")
+
+
 
         if not self.game_over:
             self.player.update()
             self.player.update_animation()
             self.physics_engine.update()
-        if self.player.center_y < 200:
+        if self.map['name'] == 'tutorial' and self.player.center_y < 200:
             self.setup()
         # screen scrolling system
         changed = self.scroll_screen()
@@ -290,17 +324,18 @@ class Game(arcade.Window):
 
 
 
-    def set_level(self, map, bound_x, bound_y):
-        self.map['name'] = map
-        self.map['x_bound'] = bound_x
-        self.map['y_bound'] = bound_y
-        map_name = f"resources/maps/{map}.tmx"  # map file
+    def set_level(self, map):
+        self.map = map
+        map_name = f"resources/maps/{map['name']}.tmx"  # map file
         # read the map
         level_map = arcade.tilemap.read_tmx(map_name)
         # generate the tiles for the ground, and for ladders
         self.ground_list = arcade.tilemap.process_layer(map_object=level_map, layer_name="ground", scaling=BLOCK_SCALE,
                                                         use_spatial_hash=True, hit_box_algorithm="Simple")
-        self.target_list = arcade.tilemap.process_layer(map_object=level_map, layer_name="targets", scaling=BLOCK_SCALE, use_spatial_hash=True)
+        self.target_list = arcade.tilemap.process_layer(map_object=level_map, layer_name="targets", scaling=BLOCK_SCALE,
+                                                        use_spatial_hash=True)
+        self.wall_list = arcade.tilemap.process_layer(map_object=level_map, layer_name="walls", scaling=BLOCK_SCALE,
+                                                      use_spatial_hash=True)
 
 
     def on_key_press(self, symbol: int, modifiers: int):
@@ -332,9 +367,20 @@ class Game(arcade.Window):
                 self.knife_collisions = False
             else:
                 self.knife_collisions = True
+
         elif symbol == arcade.key.N:
             print(f"Number of knives: {len(self.player.old_weapons)}")
         elif symbol == arcade.key.R:
+            self.setup()
+        elif symbol == arcade.key.E:
+            print(f"end_angle: {self.player.weapons[-1].angle}")
+        # elif symbol == arcade.key.L:
+        #     self.window.show_view(MyView())
+        elif symbol == 49:
+            self.map = self.maps['test']
+            self.setup()
+        elif symbol == 50:
+            self.map = self.maps['tutorial']
             self.setup()
 
     def on_key_release(self, symbol: int, modifiers: int):
@@ -387,7 +433,7 @@ class Game(arcade.Window):
     def set_projectile(self):
         if self.show_trail:
             x, y = self.mouse_pos
-            self.weapon_traject = self.physics.get_trajectory(x, y)
+            self.weapon_traject = self.physics.get_time_trajectory(x, y, self.player.weapon)
             self.trail_loaded = True
         else:
             self.trail_loaded = False
@@ -406,7 +452,9 @@ class Game(arcade.Window):
 
 
 def main():
+    window = Window()
     game = Game()
+    window.show_view(game)
     arcade.run()
 
 
