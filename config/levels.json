@@ -1,0 +1,22 @@
+{
+  "tutorial": {
+    "name": "tutorial",
+    "x_bound": 1600,
+    "y_bound": 1088,
+    "collisions": "targets",
+    "spawn_pos": {
+      "x": 128,
+      "y": 500
+  }
+             },
+  "test": {
+    "name": "level_1",
+    "x_bound": 2500,
+    "y_bound": 1280,
+    "collisions": "block",
+    "spawn_pos": {
+      "x": 1000,
+      "y": 126
+    }
+  }
+}

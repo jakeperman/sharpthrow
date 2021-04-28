@@ -16,6 +16,9 @@ import inspect
 from perf_stats import *
 from level_select import MyView
 import level_select
+from level_load import load_map
+from item_load import load_knife
+import item_load
 
 SW, SH = 832, 768
 SCALE = 1
@@ -68,7 +71,7 @@ class Game(arcade.View):
         self.score = 0
         self.mouse_pos = (0, 0)
         self.show_trail = False
-        self.weapon_traject: physics.ProjectileTrajectory = None
+        self.weapon_traject = None
         self.trail_loaded = False
         # Time for on_update
         self.processing_time = 0
@@ -91,24 +94,13 @@ class Game(arcade.View):
 
         self.tri = None
         self.knife_collisions = True
-        self.maps = {
-            "tutorial": {
-                "name": "tutorial",
-                "x_bound": 1600,
-                "y_bound": 1088,
-                "collisions": "targets"
-                       },
-            "test": {
-                "name": "level_1",
-                "x_bound": 2500,
-                "y_bound": 1280,
-                "collisions": "block"
 
-            }
-
-        }
-
-        self.map = self.maps['tutorial']
+        self.knives_to_load = [load_knife(knife) for knife in item_load.knives]
+        print(self.knives_to_load)
+        self.knives = {knife.name: knife for knife in self.knives_to_load}
+        self.set_level("tutorial")
+        physics.TimeTrajectory(10, 10, 35, 12, 3, 1654, .5)
+        physics.Triangle(10, 25, 4, 16, 100)
         self.setup()
 
     def setup(self):
@@ -116,8 +108,11 @@ class Game(arcade.View):
 
         # self.ui_manager.add_ui_element(self.button)
         # create the player
+        self.load_level(self.map)
         self.players = arcade.SpriteList()
-        self.player = Player(128, 500, SCALE)
+        self.player = Player(self.map.spawn_x, self.map.spawn_y, SCALE)
+        self.player.weapon_type = ThrowingKnife
+        self.player.weapon_stats = self.knives['basic']
         self.players.append(self.player)
 
         self.controls = {
@@ -129,14 +124,12 @@ class Game(arcade.View):
             'd': {'func': self.player.speed_x, 'param': .5}
                      }
 
-        self.set_level(self.map)
 
         # setup the physics engine
         self.physics_engine = arcade.PhysicsEnginePlatformer(self.player, self.ground_list, GRAVITY)
         self.physics_engine.disable_multi_jump()
         # set initial texture
         self.player.update_animation()
-        self.player.weapon = ThrowingKnife(self.player)
         self.physics = PhysicsEngine(self.player, self.ground_list, self.target_list, self.map)
         self.max_len = self.player.max_hp * 10
         self.show_math = False
@@ -172,7 +165,7 @@ class Game(arcade.View):
         # arcade.draw_text(output, self.right_view - 10, self.top_view - 20,
         #                  arcade.color.BLACK, 12)
 
-
+        # tm = time.perf_counter()
         if self.player.weapons:
             self.player.weapons.draw()
         if self.tri and self.show_math:
@@ -186,6 +179,7 @@ class Game(arcade.View):
         self.wall_list.draw()
         if self.trail_loaded:
             self.weapon_traject.draw()
+        # print("time to draw:", time.perf_counter() - tm)
 
 
         # calculate length of health bar
@@ -216,37 +210,41 @@ class Game(arcade.View):
         # Start timing how long this takes
         changed = False
         # self.ui_manager.on_update(delta_time)
-        x = self.mouse_x + (self.right_view - SW)
-        y = self.mouse_y + (self.top_view - SH)
-        self.mouse_pos = (x, y)
-        self.cursor.position = self.mouse_pos
+
+        # x = self.mouse_x + (self.right_view - SW)
+        # y = self.mouse_y + (self.top_view - SH)
+        # self.mouse_pos = (x, y)
+        # self.cursor.position = self.actual_pos((self.mouse_x, self.mouse_y))
         # self.button.update_pos(self.right_view - 300, self.top_view - 300)
         if self.player.weapons:
             # x = time.perf_counter()
             # print(len(self.player.weapons))
             for knife in self.player.weapons:
-                hit_targets = arcade.check_for_collision_with_list(knife, self.target_list)
+
+                # hit_walls = arcade.check_for_collision_with_list(knife, self.wall_list)
+                if self.map.collisions == "block":
+                    hits = arcade.check_for_collision_with_list(knife, self.ground_list)
+                else:
+                    hits = arcade.check_for_collision_with_list(knife, self.target_list)
+                    hit_walls = arcade.check_for_collision_with_list(knife, self.wall_list)
+                    if hit_walls:
+                        self.player.weapons.remove(knife)
                 hit_knives = arcade.check_for_collision_with_list(knife, self.player.old_weapons)
-                hit_walls = arcade.check_for_collision_with_list(knife, self.wall_list)
-                if hit_targets or hit_knives:
-                    knife.hit_sound.play(.5)
+                if hits or hit_knives:
+                    knife.hit_sound.play(1)
                     # knife.thrown = False
                     self.player.old_weapons.append(knife)
                     self.player.weapons.remove(knife)
                     if self.knife_collisions:
                         self.ground_list.append(knife)
-                elif hit_walls:
-                    self.player.weapons.remove(knife)
+                
 
             # print(f"knife time: {time.perf_counter() - x}")
 
-
-
-        if not self.game_over:
-            self.player.update()
-            self.player.update_animation()
-            self.physics_engine.update()
-        if self.map['name'] == 'tutorial' and self.player.center_y < 200:
+        self.player.update()
+        self.player.update_animation()
+        self.physics_engine.update()
+        if self.map.name == 'tutorial' and self.player.center_y < 200:
             self.setup()
         # screen scrolling system
         changed = self.scroll_screen()
@@ -255,11 +253,11 @@ class Game(arcade.View):
         if self.bottom_view < 0:
             self.bottom_view = 0
             self.top_view = self.bottom_view + SH
-        elif self.top_view > self.map['y_bound']:
-            self.top_view = self.map['y_bound']
+        elif self.top_view > self.map.y_bound:
+            self.top_view = self.map.y_bound
             self.bottom_view = self.top_view - SH
-        if self.right_view >= self.map['x_bound']:
-            self.left_view = self.map['x_bound'] - SW
+        if self.right_view >= self.map.x_bound:
+            self.left_view = self.map.x_bound - SW
             self.right_view = self.left_view + SW
         elif self.left_view < 0:
             self.left_view = 0
@@ -322,12 +320,23 @@ class Game(arcade.View):
         else:
             return False
 
+    def actual_x(self, x):
+        return x + (self.right_view - SW)
+
+    def actual_y(self, y):
+        return y + self.top_view - SH
+
+    def actual_pos(self, pos):
+        new_x = self.actual_x(pos[0])
+        new_y = self.actual_y((pos[1]))
+        return new_x, new_y
+
+    def set_level(self, map_name):
+        self.map = load_map(map_name)
 
 
-    def set_level(self, map):
-        self.map = map
-        map_name = f"resources/maps/{map['name']}.tmx"  # map file
-        # read the map
+    def load_level(self, level):
+        map_name = f"resources/maps/{level.name}.tmx"
         level_map = arcade.tilemap.read_tmx(map_name)
         # generate the tiles for the ground, and for ladders
         self.ground_list = arcade.tilemap.process_layer(map_object=level_map, layer_name="ground", scaling=BLOCK_SCALE,
@@ -358,10 +367,11 @@ class Game(arcade.View):
             else:
                 self.show_math = True
         elif symbol == arcade.key.K:
-            print(len(self.player.old_weapons))
+            kills = []
             for i, knife in enumerate(self.player.old_weapons):
-                print(i)
-                knife.kill()
+                kills.append(knife)
+            for k in kills:
+                k.kill()
         elif symbol == arcade.key.C:
             if self.knife_collisions:
                 self.knife_collisions = False
@@ -376,12 +386,18 @@ class Game(arcade.View):
             print(f"end_angle: {self.player.weapons[-1].angle}")
         # elif symbol == arcade.key.L:
         #     self.window.show_view(MyView())
-        elif symbol == 49:
-            self.map = self.maps['test']
+        elif key == "0":
+            self.set_level("tutorial")
             self.setup()
-        elif symbol == 50:
-            self.map = self.maps['tutorial']
+        elif key == "9":
+            self.set_level("test")
             self.setup()
+        elif key == "1":
+            self.player.weapon_stats = self.knives['starter']
+        elif key == "2":
+            self.player.weapon_stats = self.knives['basic']
+        elif key == "3":
+            self.player.weapon_stats = self.knives['pro']
 
     def on_key_release(self, symbol: int, modifiers: int):
         key = chr(symbol)
@@ -396,7 +412,9 @@ class Game(arcade.View):
         if button == 1:
             x = x + (self.right_view - SW)
             y = y + (self.top_view - SH)
+            tm = time.perf_counter()
             self.player.attack(x, y)
+            print("time to throw:", time.perf_counter() - tm)
 
 
         # show the knife trajectory while holding right click
@@ -433,7 +451,7 @@ class Game(arcade.View):
     def set_projectile(self):
         if self.show_trail:
             x, y = self.mouse_pos
-            self.weapon_traject = self.physics.get_time_trajectory(x, y, self.player.weapon)
+            self.weapon_traject = self.physics.get_time_trajectory(x, y, self.player.weapon_type(self.player.weapon_stats))
             self.trail_loaded = True
         else:
             self.trail_loaded = False

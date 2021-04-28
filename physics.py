@@ -5,6 +5,7 @@ import items
 import matplotlib.pyplot as mp
 from player import Player
 import time
+from numba import jit
 
 left = -1
 right = 1
@@ -17,7 +18,7 @@ class PhysicsEngine:
         self.target_list = targets
         self.objects = arcade.SpriteList()
         self.player.physics_engine = self
-        self.collider = map['collisions']
+        self.collider = map.collisions
 
     def update(self):
         self.player.update()
@@ -34,6 +35,7 @@ class PhysicsEngine:
     def check_for_collision_with_list(self, sprite, sprite_list):
         pass
 
+    # @jit
     def get_end_point(self, trajectory, return_index: bool = False):
         index = [p for p in trajectory if arcade.get_sprites_at_point(p, self.ground_list)]
         if index:
@@ -76,7 +78,7 @@ class PhysicsEngine:
         # create a triangle between the player, a space in front of player, and mouse position
         tri = Triangle(self.player.center_x, x0, self.player.center_y, y0, 100)
         knife.tri = tri
-        dtime = Geometry.get_time(knife.speed, knife.range)
+        dtime = Geometry.get_time(knife.speed, knife.range*64)
         # set appropriate directions
         if self.player.center_x < x0:
             direction = right
@@ -84,17 +86,25 @@ class PhysicsEngine:
             direction = left
         # set player and knife directions
         self.player.direction = direction
-        knife.set_direction(direction)
+        knife.set_direction(parent=self.player)
         # calculate velocity
         v = tri.hypotenuse() * knife.speed
-        if v > knife.max_velocity:
-            v = knife.max_velocity
+        # prevent velocity from exceeding the specified maximum
+        if v > knife.max_speed:
+            v = knife.max_speed
+        # get the angle to throw
         angle = tri.angle
         time_inc = .1
+        # create the trajectory
         path = ProjectileTimeTrajectory(self.player.center_x, self.player.center_y, v, angle, 3, dtime, self, time_inc=time_inc)
+        # slice the path at the point which it would collide with an object
+        tm = time.perf_counter()
         path.slice(collider=self.collider)
+        print(time.perf_counter() - tm)
+        # keep knife at consistent speed, regardless of precision (time increment)
         n = int(.5/time_inc)
         path.cut(n)
+        # get the list of points from our trajectory object
         p = path.get_path()
         dx = abs(p[-1][0] - p[0][0])
         dy = abs(p[-1][1] - p[0][1])
@@ -114,9 +124,9 @@ class PhysicsEngine:
     def get_time_trajectory(self, x0, y0, knife):
         tri = Triangle(self.player.center_x, x0, self.player.center_y, y0, 100)
         v = tri.hypotenuse() * knife.speed
-        if v > knife.max_velocity:
-            v = knife.max_velocity
-        dtime = Geometry.get_time(knife.speed, knife.range)
+        if v > knife.max_speed:
+            v = knife.max_speed
+        dtime = Geometry.get_time(knife.speed, knife.range*64)
         ang = tri.angle
         path = ProjectileTimeTrajectory(self.player.center_x, self.player.center_y, v, ang, 3, dtime, self, time_inc=.5)
         return path
@@ -153,13 +163,15 @@ class ProjectileTimeTrajectory(TimeTrajectory):
     def slice(self, collider="block"):
         end_point = self.physics_engine.get_last_point(self.trajectory, return_index=True)
         if collider == "block":
+            tm = time.perf_counter()
             end_point = self.physics_engine.get_end_point(self.trajectory, return_index=True)
+            print("end time:", time.perf_counter() - tm)
         new_path = self.trajectory[:end_point]
         self.trajectory = new_path
         return self.trajectory
 
     def cut(self, num):
-        old = self.trajectory[-2:]
+        old = self.trajectory[-5:]
         self.trajectory = self.trajectory[::num]
         self.trajectory = self.trajectory + old
 
@@ -219,6 +231,7 @@ class Geometry:
         return math.degrees(math.acos(eq))  # return inverse cosine
 
     @staticmethod
+    # @jit
     def get_triangle(x1, x2, y1, y2, r):
         # calculate the three points
         p1 = (x1, y1)
@@ -279,6 +292,7 @@ class Geometry:
         return points
 
     @staticmethod
+    # @jit
     def time_trajectory(x0, y0, v0, angle, gravity, dtime, time_inc):
         x_coords = []
         y_coords = []
@@ -289,7 +303,6 @@ class Geometry:
         g = gravity
         t = 0  # time starts at 0
         y = 0
-        s = time.perf_counter()
         while t <= dtime:
             t += time_inc  # add time (higher values = less points calculated, which is faster)
             x = x0 + vx * t  # calculate x position

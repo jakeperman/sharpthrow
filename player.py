@@ -33,8 +33,10 @@ class Player(arcade.AnimatedWalkingSprite):
         self.last_direction = 0
         self.changed_direction = False
         # register variables for later use
-        self.weapon = None
+        self.weapon_stats = None
+        self.weapon_type = None
         self.weapons = arcade.SpriteList()
+        self.current_weapon = None
         self.should_attack = False
         self.direction = 0
         self.attacking = False
@@ -43,16 +45,20 @@ class Player(arcade.AnimatedWalkingSprite):
         self.physics_engine = None
         self.can_move = True
         self.old_weapons = arcade.SpriteList()
-
+        self.weapons.disable_spatial_hashing()
+        self.old_weapons.disable_spatial_hashing()
 
     # attack with the players weapon
     def attack(self, x, y):
+        # set player to attack (for animations)
         self.attacking = True
-        # self.weapon.attack()
-        knife = ThrowingKnife(self)
-        self.weapons.append(knife)
-        self.weapon = knife
-        self.physics_engine.throw_knife(knife, x, y)
+        # create an instance of the players weapon object
+        weapon = self.weapon_type(self.weapon_stats)
+        # throw the weapon
+        self.physics_engine.throw_knife(weapon, x, y)
+        # add the weapon to the players weapons list for drawing and updating
+        self.current_weapon = weapon
+        self.weapons.append(weapon)
 
     def set_weapon(self, x, y):
         # self.weapon =
@@ -82,6 +88,7 @@ class Player(arcade.AnimatedWalkingSprite):
             if len(self.old_weapons) > 1000:
                 self.old_weapons[0].kill()
             self.weapons.update()
+
 
         self.last_direction = self.direction
 

@@ -1,0 +1,36 @@
+{
+ "knives": {
+
+   "starter": {
+      "stats": {
+        "range": 1,
+        "velocity": 2.5,
+        "max_velocity": 35
+     },
+      "scale": 0.5,
+      "texture": "knife.png",
+      "sound": "knife_throw"
+   },
+
+   "basic": {
+     "stats": {
+       "range": 1,
+       "velocity": 3,
+       "max_velocity": 40
+   },
+     "scale": 0.55,
+     "texture": "knife.png",
+     "sound": "knife_throw"
+   },
+   "pro": {
+      "stats": {
+        "range": 1,
+        "velocity": 4.25,
+        "max_velocity": 55
+     },
+      "scale": 0.7,
+      "texture": "knife.png",
+      "sound": "knife_throw"
+   }
+ }
+}
