@@ -1,6 +1,7 @@
 import arcade
 import math
 import random
+# import physics
 
 frames_per_update = 3
 left = -1
@@ -18,7 +19,81 @@ class Knife(arcade.Sprite):
         pass
 
 
-class ThrowingKnife(Knife):
+class Projectile(arcade.Sprite):
+
+    trajectory = None
+    change_angle: float = None
+    path: list = None
+    direction: int = 0
+
+    def __init__(self, texture, scale, trajectory=None):
+        super(Projectile, self).__init__(texture, scale)
+        self.trajectory = trajectory or None
+
+    def update(self):
+        if self.path:
+            self.position = self.path[0]
+            self.path.pop(0)
+            self.update_angle()
+
+    def update_angle(self):
+        if self.direction is right:
+            self.angle -= self.change_angle
+        elif self.direction is left:
+            self.angle += self.change_angle
+
+    def set_trajectory(self, trajectory):
+        self.trajectory = trajectory
+        self.set_path()
+
+    def set_path(self):
+        self.path = self.trajectory.get_trimmed_path()
+        # self.path = self.trajectory.get_path()
+
+    def on_throw(self):
+        pass
+
+    def throw(self, trajectory):
+        self.set_trajectory(trajectory)
+        self.on_throw()
+
+
+class ThrowingKnife(Projectile):
+    def __init__(self, knife_object):
+        super(ThrowingKnife, self).__init__(knife_object.texture, knife_object.scale)
+        self.speed = knife_object.speed
+        self.range = knife_object.range * 64
+        self.max_speed = knife_object.max_speed
+        self.sounds = [arcade.Sound(sound) for sound in knife_object.sounds]
+        self.hit_sound = arcade.Sound("resources/sounds/knife_hit_ground.wav")
+        self.triangle = None
+
+
+    def set_direction(self, direction):
+        self.direction = direction
+        if self.direction == right:
+            self.angle = 0
+        elif self.direction == left:
+            self.angle = 90
+
+    def on_throw(self):
+        random.choice(self.sounds).play(.5)
+
+    def update(self):
+        super(ThrowingKnife, self).update()
+        if self.center_y < 0:
+            self.kill()
+
+    def set_angle_change(self, dx, dy, angle):
+        self.angle = angle - 45
+        self.change_angle = 180 / 40
+        # # calculate how much to change the angle each update
+        # a = math.degrees(math.atan2(dx, dy))
+        # self.change_angle = 60
+
+
+
+class ThrowingKnife1(Knife):
     def __init__(self, knife_object):
         super(ThrowingKnife, self).__init__(knife_object.texture, knife_object.scale)
         self.speed = knife_object.speed
@@ -38,7 +113,7 @@ class ThrowingKnife(Knife):
         # load point list from trajectory
         self.path = trajectory.get_path()
         # play throwing sound
-        random.choice(self.sounds).play(.5)
+        random.choice(self.sounds).play(.3)
         self.thrown = True
 
     def update(self):
@@ -63,18 +138,13 @@ class ThrowingKnife(Knife):
         #     self.ang_change *= 1.15
             # self.angle += 24
 
-    def set_direction(self, parent):
-        self.direction = parent.direction
+    def set_direction(self, direction):
+        self.direction = direction
         if self.direction == right:
-            self.change_x = 0
             self.angle = 0
-            self.center_x = parent.right
-            self.center_y = parent.center_y - 14
         elif self.direction == left:
-            self.change_x = 0
             self.angle = 90
-            self.center_x = parent.left
-            self.center_y = parent.center_y - 10
+
 
 
 

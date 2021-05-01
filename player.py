@@ -1,5 +1,6 @@
 import arcade
-from items import ThrowingKnife
+from items import ThrowingKnife, Projectile
+import time
 FRAMES_PER_UPDATE = 5
 FPU = FRAMES_PER_UPDATE
 left = -1
@@ -38,31 +39,34 @@ class Player(arcade.AnimatedWalkingSprite):
         self.weapons = arcade.SpriteList()
         self.current_weapon = None
         self.should_attack = False
-        self.direction = 0
+        self.direction = 1
         self.attacking = False
         self.prev_index = 0
         self.actual_y = 0
         self.physics_engine = None
         self.can_move = True
         self.old_weapons = arcade.SpriteList()
-        self.weapons.disable_spatial_hashing()
-        self.old_weapons.disable_spatial_hashing()
+        self.weapon = None
+        # self.weapons.disable_spatial_hashing()
+        # self.old_weapons.disable_spatial_hashing()
 
     # attack with the players weapon
     def attack(self, x, y):
         # set player to attack (for animations)
         self.attacking = True
         # create an instance of the players weapon object
-        weapon = self.weapon_type(self.weapon_stats)
-        # throw the weapon
-        self.physics_engine.throw_knife(weapon, x, y)
-        # add the weapon to the players weapons list for drawing and updating
-        self.current_weapon = weapon
-        self.weapons.append(weapon)
+        # self.current_weapon = self.weapon_type(self.weapon_stats)
+        self.set_weapon()
+        self.physics_engine.throw_knife(x, y, self.weapon)
+        # self.physics_engine.throw_object(self.current_weapon, x, y, 20)
 
-    def set_weapon(self, x, y):
-        # self.weapon =
-        pass
+
+    def set_weapon(self):
+        self.weapon = self.get_weapon()
+        self.weapons.append(self.weapon)
+
+    def get_weapon(self):
+        return self.weapon_type(self.weapon_stats)
 
     def update(self):
         # if player is going left
@@ -84,10 +88,10 @@ class Player(arcade.AnimatedWalkingSprite):
 
 
         # set correct direction to update weapon
-        if self.weapons:
-            if len(self.old_weapons) > 1000:
-                self.old_weapons[0].kill()
-            self.weapons.update()
+        # if self.weapons:
+        #     if len(self.old_weapons) > 1000:
+        #         self.old_weapons[0].kill()
+        #     self.weapons.update()
 
 
         self.last_direction = self.direction

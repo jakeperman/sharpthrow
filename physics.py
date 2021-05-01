@@ -5,29 +5,40 @@ import items
 import matplotlib.pyplot as mp
 from player import Player
 import time
+from abc import ABC, abstractmethod
 from numba import jit
 
 left = -1
 right = 1
 
 
+class Trajectory(ABC):
+
+    trajectory: list
+
+    def get_path(self):
+        return self.trajectory
+
+
 class PhysicsEngine:
-    def __init__(self, player: Player, ground: arcade.SpriteList, targets: arcade.SpriteList, map, enemies: arcade.SpriteList = None):
+    def __init__(self, player: Player, ground: arcade.SpriteList, targets: arcade.SpriteList, gravity, level=None):
         self.player = player
-        self.ground_list = ground
+        self.surface_list = ground
         self.target_list = targets
         self.objects = arcade.SpriteList()
         self.player.physics_engine = self
-        self.collider = map.collisions
+        self.collider = level.collisions if level else None
+        self.gravity = gravity
 
     def update(self):
-        self.player.update()
-        self.ground_list.update()
-        if self.objects:
-            self.objects.update()
+        # self.player.update()
+        # self.surface_list.update()
+        # if self.objects:
+            # print("objects")
+        self.objects.update()
 
     def update_ground(self, ground_list):
-        self.ground_list = ground_list
+        self.surface_list = ground_list
 
     def check_for_collision(self, sprite1, sprite2):
         pass
@@ -35,48 +46,40 @@ class PhysicsEngine:
     def check_for_collision_with_list(self, sprite, sprite_list):
         pass
 
-    # @jit
-    def get_end_point(self, trajectory, return_index: bool = False):
-        index = [p for p in trajectory if arcade.get_sprites_at_point(p, self.ground_list)]
-        if index:
-            index = trajectory.index(index[0])
-        else:
-            if return_index:
-                return len(trajectory) - 1
-            else:
-                return trajectory[-1]
-        if return_index:
-            return index
-        return trajectory[index]
-
-    def get_last_point(self, trajectory, return_index: bool = False):
-        index = [p for p in trajectory if arcade.get_sprites_at_point(p, self.target_list)]
-        if index:
-            index = trajectory.index(index[0])
-        else:
-            if return_index:
-                return len(trajectory) - 1
-            else:
-                return trajectory[-1]
-        if return_index:
-            return index
-        return trajectory[index]
-
-
-    def draw_trajectory(self, trajectory):
-        end = self.get_end_point(trajectory, return_index=True)
-        path = trajectory[:end]
-        arcade.draw_points(path, arcade.color.GOLD, 3)
-
-    def draw_triangle(self):
-        pass
-
     def add_object(self, obj):
         self.objects.append(obj)
 
-    def throw_knife(self, knife: items.ThrowingKnife, x0, y0):
+    def remove_object(self, obj):
+        self.objects.remove(obj)
+
+    def draw_trajectory(self, projectile):
+        path = projectile.get_sliced(self.surface_list)
+        arcade.draw_points(path, arcade.color.GOLD, 3)
+
+    def throw_object(self, obj, x0, y0, v0):
+        obj.set_trajectory(self.get_trajectory_from_player(x0, y0, v0))
+        obj.on_throw()
+        self.add_object(obj)
+
+    def throw_knife(self, x, y, knife: items.ThrowingKnife):
+        trajectory = self.get_knife_trajectory_from_player(x, y, knife, .25)
+        trajectory.slice_at_collision(self.surface_list)
+        trajectory.trim()
+        knife.throw(trajectory)
+
+        mid_point = trajectory.get_max_point()
+        start_point = trajectory.x0, trajectory.y0
+        end_point = trajectory.get_point_of_impact(self.surface_list)
+        tri = Triangle(start_point, mid_point, end_point)
+        knife.triangle = tri
+        # print(f"A: {a}, B: {b}, C: {c}")
+        knife.set_direction(self.player.direction)
+        # knife.change_angle = angle_change / len(trajectory.get_sliced(self.surface_list))
+        self.add_object(knife)
+
+    def throw_knife_old(self, knife: items.ThrowingKnife, x0, y0):
         # create a triangle between the player, a space in front of player, and mouse position
-        tri = Triangle(self.player.center_x, x0, self.player.center_y, y0, 100)
+        tri = StaticTriangle(self.player.center_x, x0, self.player.center_y, y0, 100)
         knife.tri = tri
         dtime = Geometry.get_time(knife.speed, knife.range*64)
         # set appropriate directions
@@ -86,9 +89,11 @@ class PhysicsEngine:
             direction = left
         # set player and knife directions
         self.player.direction = direction
-        knife.set_direction(parent=self.player)
+        knife.set_direction(direction)
         # calculate velocity
         v = tri.hypotenuse() * knife.speed
+
+
         # prevent velocity from exceeding the specified maximum
         if v > knife.max_speed:
             v = knife.max_speed
@@ -97,104 +102,166 @@ class PhysicsEngine:
         time_inc = .1
         # create the trajectory
         path = ProjectileTimeTrajectory(self.player.center_x, self.player.center_y, v, angle, 3, dtime, self, time_inc=time_inc)
+
+
         # slice the path at the point which it would collide with an object
-        tm = time.perf_counter()
         path.slice(collider=self.collider)
-        print(time.perf_counter() - tm)
+
         # keep knife at consistent speed, regardless of precision (time increment)
         n = int(.5/time_inc)
+
         path.cut(n)
+        # tm = time.perf_counter()
+
         # get the list of points from our trajectory object
         p = path.get_path()
-        dx = abs(p[-1][0] - p[0][0])
-        dy = abs(p[-1][1] - p[0][1])
-        a = math.degrees(math.atan2(v, 3))
-        a_change = a
+        # dist = arcade.get_distance_between_sprites(self.player, knife)
+
+        dx = arcade.get_distance(self.player.center_x, self.player.center_y, p[-1][0], p[-1][1]) # change in x
+        print(f"dy: none dx: {dx}")
+
+        print("vel:", v)  # total velocity
+        vy = v * math.sin(math.radians(angle))  # y velocity
+        vx = v * math.cos(math.radians(angle))  # x velocity
+        print(f"vy: {vy}, vx: {vx}")
+
+        time = (-vy - vy) / -3  # time
+        print(f"my_time: {time}")
+
+        # Horizontal Range
+        R = abs((v**2 / -3 * (math.sin(math.radians(angle*2)))))
+        r = (-vy ** 2) / -6  # vertical change
+
+        print(f"horz range: {R} vert rnge: {r}")
+        # a_change = a_change / dx
+        # print(a_change)
+        # a = math.degrees(math.atan2(v, 3))
         knife.set_angle(v, 3, angle)
+        # print("achan:", achan)
         # knife.set_ang_change(angle, a_change)
         knife.throw(path)
+        # print("time to half", time.perf_counter() - tm)
 
-    def get_distance_trajectory(self, x0, y0, knife, sp=2.5):
-        tri = Triangle(self.player.center_x, x0, self.player.center_y, y0, 100)
-        v = tri.hypotenuse() * sp
-        ang = tri.angle
-        path = ProjectileDistanceTrajectory(self.player.center_x, self.player.center_y, v, ang, 3, self)
-        return path
+    def get_trajectory_from_player(self, x0, y0, v0, max_velocity=None):
+        tri = StaticTriangle(self.player.center_x, x0, self.player.center_y, y0, 100)
+        if max_velocity and v0 > max_velocity:
+            v0 = max_velocity
+        return ProjectileDistanceTrajectory(self.player.center_x, self.player.center_y, v0, tri.angle, 3)
 
-    def get_time_trajectory(self, x0, y0, knife):
-        tri = Triangle(self.player.center_x, x0, self.player.center_y, y0, 100)
+    def get_knife_trajectory_from_player(self, x0, y0, knife, precision=.5):
+        tri = StaticTriangle(self.player.center_x, x0, self.player.center_y, y0, 100)
         v = tri.hypotenuse() * knife.speed
         if v > knife.max_speed:
             v = knife.max_speed
-        dtime = Geometry.get_time(knife.speed, knife.range*64)
-        ang = tri.angle
-        path = ProjectileTimeTrajectory(self.player.center_x, self.player.center_y, v, ang, 3, dtime, self, time_inc=.5)
-        return path
+        return ProjectileDistanceTrajectory(self.player.center_x, self.player.center_y, v, tri.angle, 1, precision)
+
+    # def get_trajectory_from_player(self, x0, y0, v0):
+    #     tri = Triangle(self.player.center_x, x0, self.player.center_y, y0, 100)
+    #     return ProjectileDistanceTrajectory(self.player.center_x, self.player.center_y, v0, tri.angle, self.gravity)
 
 
-class DistanceTrajectory:
-    def __init__(self, x0, y0, v0, angle, gravity):
-        self.x0, self.y0, self.v0, self.angle, self.gravity = x0, y0, v0, angle, gravity
-        self.trajectory = Geometry.distance_trajectory(x0, y0, v0, angle, gravity)
-
-    def get_path(self):
-        return self.trajectory
+class DistanceTrajectory(Trajectory):
+    def __init__(self, x0, y0, v0, angle, gravity, precision):
+        self.x0, self.y0, self.v0, self.angle, self.gravity, self.precision = x0, y0, v0, angle, gravity, precision
+        self.trajectory = Geometry.distance_trajectory(x0, y0, v0, angle, gravity, precision)
 
 
-class TimeTrajectory:
+class TimeTrajectory(Trajectory):
     def __init__(self, x0, y0, v0, angle, gravity, dtime, time_inc):
         self.x0, self.y0, self.v0, self.angle, self.gravity = x0, y0, v0, angle, gravity
         self.trajectory = Geometry.time_trajectory(x0, y0, v0, angle, gravity, dtime, time_inc=time_inc)
 
-    def get_path(self):
-        return self.trajectory
-
-
-class ProjectileTimeTrajectory(TimeTrajectory):
-    def __init__(self, x0, y0, v0, angle, gravity, dtime, physics_engine: PhysicsEngine, time_inc=.25):
-        super().__init__(x0, y0, v0, angle, gravity, dtime, time_inc)
-        self.physics_engine = physics_engine
-
-    def draw(self):
-        end_point = self.physics_engine.get_end_point(self.trajectory, return_index=True)
-        new_path = self.trajectory[:end_point]
-        arcade.draw_points(new_path, arcade.color.GOLD, 3)
-
-    def slice(self, collider="block"):
-        end_point = self.physics_engine.get_last_point(self.trajectory, return_index=True)
-        if collider == "block":
-            tm = time.perf_counter()
-            end_point = self.physics_engine.get_end_point(self.trajectory, return_index=True)
-            print("end time:", time.perf_counter() - tm)
-        new_path = self.trajectory[:end_point]
-        self.trajectory = new_path
-        return self.trajectory
-
-    def cut(self, num):
-        old = self.trajectory[-5:]
-        self.trajectory = self.trajectory[::num]
-        self.trajectory = self.trajectory + old
 
 class ProjectileDistanceTrajectory(DistanceTrajectory):
-    def __init__(self, x0, y0, v0, angle, gravity, physics_engine: PhysicsEngine):
-        super().__init__(x0, y0, v0, angle, gravity)
-        self.physics_engine = physics_engine
+    def __init__(self, x0, y0, v0, angle, gravity, precision=.5):
+        super().__init__(x0, y0, v0, angle, gravity, precision)
+        print(self.precision)
 
     def draw(self):
-        end_point = self.physics_engine.get_end_point(self.trajectory, return_index=True)
-        new_path = self.trajectory[:end_point]
-        arcade.draw_points(new_path, arcade.color.GOLD, 3)
+        path = self.get_path()
+        arcade.draw_points(path, arcade.color.GOLD, 3)
 
-    def slice(self):
-        end_point = self.physics_engine.get_end_point(self.trajectory, return_index=True)
-        new_path = self.trajectory[:end_point]
-        self.trajectory = new_path
+    def slice_at_collision(self, collision_objects: arcade.SpriteList):
+        self.trajectory = self.get_sliced(collision_objects)
+
+    def get_sliced(self, collision_objects: arcade.SpriteList):
+        end_point_index = self.get_index_of_impact(collision_objects)
+        new_path = self.trajectory[:end_point_index]
+        trajectory = new_path
+        return trajectory
+
+    def get_trimmed_path(self):
+        factor = int(.5/self.precision)
+        print(f"factor: {factor}")
+        end = self.trajectory[-2:]
+        trajectory = self.trajectory[:-2:factor]
+        trajectory = trajectory + end
+        return trajectory
+
+    def trim(self):
+        self.trajectory = self.get_trimmed_path()
         return self.trajectory
+
+    def get_point_of_impact(self, spritelist: arcade.SpriteList):
+        end_point = None
+        points_to_check = self.get_path()
+        for point in points_to_check:
+            if arcade.get_sprites_at_point(point, spritelist):
+                end_point = point
+                break
+        if end_point:
+            return end_point
+        return points_to_check[-1]
+
+    def get_index_of_impact(self, spritelist: arcade.SpriteList):
+        point = self.get_point_of_impact(spritelist)
+        return self.trajectory.index(point)
+
+    def get_max_height(self):
+        y_values = [p[1] for p in self.trajectory]
+        return max(y_values)
+
+    def get_max_point(self):
+        y_values = [p[1] for p in self.trajectory]
+        max_h = max(y_values)
+        h_ind = y_values.index(max_h)
+        point = self.trajectory[h_ind]
+        return point
 
 
 class Triangle:
+    def __init__(self, point1: tuple, point2: tuple, point3: tuple):
+        self.points = point1, point2, point3
+        self.sides = Geometry.get_triangle(point1, point2, point3)
+
+    def draw(self):
+        arcade.draw_polygon_outline(self.points, arcade.color.PURPLE, 2)
+
+    def angle_a(self):
+        a, b, c = self.sides
+        th = (a ** 2) - (b ** 2 + c ** 2)
+        bh = -2 * b * c
+        eq = th / bh
+        return math.degrees(math.cos(eq))
+
+    def angle_b(self):
+        a, b, c = self.sides
+        th = (b ** 2) - (a ** 2 + c ** 2)
+        bh = -2 * a * c
+        eq = th / bh
+        return math.degrees(math.cos(eq))
+
+    def angle_c(self):
+        a, b, c = self.sides
+        th = (c ** 2) - (b ** 2 + a ** 2)
+        bh = -2 * a * b
+        eq = th / bh
+        return math.degrees(math.cos(eq))
+
+
+class StaticTriangle:
     def __init__(self, x1, x2, y1, y2, r):
-        self.shape = Geometry.get_triangle(x1, x2, y1, y2, r)
+        self.shape = Geometry.get_triangle_static(x1, x2, y1, y2, r)
         self.points = self.shape[1]
         self.angle = self.shape[0]
         self.sides = self.shape[2]
@@ -231,8 +298,19 @@ class Geometry:
         return math.degrees(math.acos(eq))  # return inverse cosine
 
     @staticmethod
-    # @jit
-    def get_triangle(x1, x2, y1, y2, r):
+    def get_triangle(point1, point2, point3):
+        x1, y1 = point1
+        x2, y2 = point2
+        x3, y3 = point3
+
+        # calculate the three sides using the distance formula
+        c = math.sqrt(Geometry.get_distance(x1, y1, x2, y2))
+        a = math.sqrt(Geometry.get_distance(x2, y2, x3, y3))
+        b = math.sqrt(Geometry.get_distance(x3, y3, x1, y1))
+        return a, b, c
+
+    @staticmethod
+    def get_triangle_static(x1, x2, y1, y2, r):
         # calculate the three points
         p1 = (x1, y1)
         p2 = (x1 + r, y1)
@@ -265,37 +343,25 @@ class Geometry:
         return angle
 
     @staticmethod
-    def distance_trajectory(x0, y0, v0, angle, gravity, show=False, floor=0):
-        x_coords = []
-        y_coords = []
+    def distance_trajectory(x0, y0, v0, angle, gravity, precision=.5, floor=0):
+        points = []
         # get the x and y velocities
-        # v0 = v0 / (precision / .5)
         vx = v0 * math.cos(math.radians(angle))
         vy = v0 * math.sin(math.radians(angle))
         g = gravity
         t = 0  # time starts at 0
         y = 0
-        s = time.perf_counter()
         while y >= floor:
-            t += .5 # add time (higher values = less points calculated, which is faster)
+            t += precision  # add time (higher values = less points calculated, which is faster)
             x = x0 + vx * t  # calculate x position
             y = y0 + (vy * t) - ((.5 * g) * (t ** 2))  # calculate y position
-            x_coords.append(x)
-            y_coords.append(y)
-        # plot the trajectory and show it
-        # if show:
-        #     x = np.array(x_coords)
-        #     y = np.array(y_coords)
-        #     mp.plot(x, y)
-        #     mp.show()
-        points = [(x, y) for x, y in zip(x_coords, y_coords)]
+            points.append((x, y))
         return points
 
     @staticmethod
     # @jit
-    def time_trajectory(x0, y0, v0, angle, gravity, dtime, time_inc):
-        x_coords = []
-        y_coords = []
+    def time_trajectory(x0, y0, v0, angle, gravity, dtime, time_inc, floor=0):
+        points = []
         # get the x and y velocities
         # v0 = v0 / (time_inc / .5)
         vx = v0 * math.cos(math.radians(angle))
@@ -303,13 +369,12 @@ class Geometry:
         g = gravity
         t = 0  # time starts at 0
         y = 0
-        while t <= dtime:
+        while y >= floor:
             t += time_inc  # add time (higher values = less points calculated, which is faster)
             x = x0 + vx * t  # calculate x position
             y = y0 + (vy * t) - ((.5 * g) * (t ** 2))  # calculate y position
-            x_coords.append(x)
-            y_coords.append(y)
-        points = [(x, y) for x, y in zip(x_coords, y_coords)]
+            points.append((x, y))
+        # print(t)
         return points
 
     @staticmethod
