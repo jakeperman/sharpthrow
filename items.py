@@ -47,8 +47,8 @@ class Projectile(arcade.Sprite):
         self.set_path()
 
     def set_path(self):
-        self.path = self.trajectory.get_trimmed_path()
-        # self.path = self.trajectory.get_path()
+        # self.path = self.trajectory.get_trimmed_path()
+        self.path = self.trajectory.get_path()
 
     def on_throw(self):
         pass
@@ -56,6 +56,9 @@ class Projectile(arcade.Sprite):
     def throw(self, trajectory):
         self.set_trajectory(trajectory)
         self.on_throw()
+
+    def on_collision(self):
+        pass
 
 
 class ThrowingKnife(Projectile):

@@ -59,12 +59,13 @@ class PhysicsEngine:
     def throw_object(self, obj, x0, y0, v0):
         obj.set_trajectory(self.get_trajectory_from_player(x0, y0, v0))
         obj.on_throw()
+        self.player.weapons.append(obj)
         self.add_object(obj)
 
     def throw_knife(self, x, y, knife: items.ThrowingKnife):
-        trajectory = self.get_knife_trajectory_from_player(x, y, knife, .25)
-        trajectory.slice_at_collision(self.surface_list)
-        trajectory.trim()
+        trajectory = self.get_knife_trajectory_from_player(x, y, knife, .3)
+        # trajectory.slice_at_collision(self.surface_list)
+        # trajectory.trim()
         knife.throw(trajectory)
 
         mid_point = trajectory.get_max_point()
@@ -153,7 +154,7 @@ class PhysicsEngine:
         v = tri.hypotenuse() * knife.speed
         if v > knife.max_speed:
             v = knife.max_speed
-        return ProjectileDistanceTrajectory(self.player.center_x, self.player.center_y, v, tri.angle, 1, precision)
+        return ProjectileDistanceTrajectory(self.player.center_x, self.player.center_y, v, tri.angle, 5, precision)
 
     # def get_trajectory_from_player(self, x0, y0, v0):
     #     tri = Triangle(self.player.center_x, x0, self.player.center_y, y0, 100)
@@ -175,7 +176,6 @@ class TimeTrajectory(Trajectory):
 class ProjectileDistanceTrajectory(DistanceTrajectory):
     def __init__(self, x0, y0, v0, angle, gravity, precision=.5):
         super().__init__(x0, y0, v0, angle, gravity, precision)
-        print(self.precision)
 
     def draw(self):
         path = self.get_path()
@@ -192,7 +192,6 @@ class ProjectileDistanceTrajectory(DistanceTrajectory):
 
     def get_trimmed_path(self):
         factor = int(.5/self.precision)
-        print(f"factor: {factor}")
         end = self.trajectory[-2:]
         trajectory = self.trajectory[:-2:factor]
         trajectory = trajectory + end

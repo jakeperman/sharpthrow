@@ -175,6 +175,7 @@ class Game(arcade.View):
         if self.player.old_weapons:
             self.player.old_weapons.draw()
 
+
         self.players.draw()
         self.surface_list.draw()
         self.target_list.draw()
@@ -223,6 +224,7 @@ class Game(arcade.View):
         if self.player.weapons:
             # x = time.perf_counter()
             # print(len(self.player.weapons))
+            # print("player weapons:", len(self.player.weapons))
             for knife in self.player.weapons:
 
                 # hit_walls = arcade.check_for_collision_with_list(knife, self.wall_list)
@@ -418,6 +420,7 @@ class Game(arcade.View):
             x = x + (self.right_view - SW)
             y = y + (self.top_view - SH)
             self.player.attack(x, y)
+            # self.physics.throw_object(obj, x, y, 50)
             # self.weapon_traject = self.player.weapon.trajectory
             # self.trail_loaded = True
             # self.show_trail = True
