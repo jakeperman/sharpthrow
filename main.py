@@ -119,11 +119,11 @@ class Game(arcade.View):
             'a': {'func': self.player.speed_x, 'param': -self.player_speed},
             'd': {'func': self.player.speed_x, 'param': self.player_speed}
         }
+
         self.slow = {
             'a': {'func': self.player.speed_x, 'param': -.5},
             'd': {'func': self.player.speed_x, 'param': .5}
                      }
-
 
         # setup the physics engine
         self.physics_engine = arcade.PhysicsEnginePlatformer(self.player, self.surface_list, GRAVITY)
@@ -134,10 +134,8 @@ class Game(arcade.View):
         self.max_len = self.player.max_hp * 10
         self.show_math = False
 
-
     def on_draw(self):
         start_time = timeit.default_timer()
-
 
         # --- Calculate FPS
         fps_calculation_freq = FPS
@@ -175,7 +173,6 @@ class Game(arcade.View):
         if self.player.old_weapons:
             self.player.old_weapons.draw()
 
-
         self.players.draw()
         self.surface_list.draw()
         self.target_list.draw()
@@ -185,7 +182,6 @@ class Game(arcade.View):
             self.physics.draw_trajectory(self.weapon_traject)
             # self.weapon_traject.draw()
         # print("time to draw:", time.perf_counter() - tm)
-
 
         # calculate length of health bar
         box_len = self.player.hp * 10
@@ -221,13 +217,15 @@ class Game(arcade.View):
         # self.mouse_pos = (x, y)
         # self.cursor.position = self.actual_pos((self.mouse_x, self.mouse_y))
         # self.button.update_pos(self.right_view - 300, self.top_view - 300)
+
         if self.player.weapons:
-            # x = time.perf_counter()
+            # x = time.perf_count er()
             # print(len(self.player.weapons))
             # print("player weapons:", len(self.player.weapons))
             for knife in self.player.weapons:
 
                 # hit_walls = arcade.check_for_collision_with_list(knife, self.wall_list)
+
                 if self.map.collisions == "block":
                     hits = arcade.check_for_collision_with_list(knife, self.surface_list)
                 else:
@@ -293,14 +291,12 @@ class Game(arcade.View):
         else:
             self.player.speed_x(0)
 
-
     def get_screen_boundaries(self):
         left_bound = self.left_view + LEFT_VIEW_MARGIN
         right_bound = self.right_view - RIGHT_VIEW_MARGIN
         top_bound = self.top_view - TOP_VIEW_MARGIN
         bottom_bound = self.bottom_view + BOTTOM_VIEW_MARGIN
         return right_bound, left_bound, top_bound, bottom_bound
-
 
     def scroll_screen(self):
         right_boundary, left_boundary, top_boundary, bottom_boundary = self.get_screen_boundaries()
@@ -440,7 +436,7 @@ class Game(arcade.View):
     def on_mouse_release(self, x: float, y: float, button: int,
                          modifiers: int):
         # throw the knife once right click is released and hide the trajectory
-        self.tri = False
+
         if button == 4:
             x = x + (self.right_view - SW)
             y = y + (self.top_view - SH)
@@ -448,6 +444,7 @@ class Game(arcade.View):
             self.show_trail = False
             self.trail_loaded = False
             self.player.can_move = True
+            self.tri = False
 
     # update position of
     def on_mouse_motion(self, x: float, y: float, dx: float, dy: float):
@@ -487,7 +484,11 @@ class Game(arcade.View):
         tri = physics.Triangle(start_point, mid_point, end_point)
 
         tri.draw()
-        arcade.draw_circle_filled(end_point[0], end_point[1], 20, arcade.color.RED)
+        a, b, c = tri.angle_a(), tri.angle_b(), tri.angle_c()
+        arcade.draw_text(str(a), start_point[0] + 20, start_point[1], arcade.color.BLACK, 12)
+        arcade.draw_text(str(b), mid_point[0], mid_point[1] + 20, arcade.color.BLACK, 12)
+        arcade.draw_text(str(c), end_point[0], end_point[1] + 20, arcade.color.BLACK, 12)
+        arcade.draw_circle_filled(end_point[0], end_point[1], 20, arcade.color.RED, 12)
 
 
 

@@ -42,13 +42,20 @@ class Projectile(arcade.Sprite):
         elif self.direction is left:
             self.angle += self.change_angle
 
+    def set_angle_change(self, angle, change):
+        if self.direction == right:
+            self.angle += angle
+        else:
+            self.angle += angle - 180
+        self.change_angle = change
+
     def set_trajectory(self, trajectory):
         self.trajectory = trajectory
         self.set_path()
 
     def set_path(self):
-        # self.path = self.trajectory.get_trimmed_path()
-        self.path = self.trajectory.get_path()
+        self.path = self.trajectory.get_trimmed_path()
+        # self.path = self.trajectory.get_path()
 
     def on_throw(self):
         pass
@@ -75,9 +82,9 @@ class ThrowingKnife(Projectile):
     def set_direction(self, direction):
         self.direction = direction
         if self.direction == right:
-            self.angle = 0
+            self.angle = -45
         elif self.direction == left:
-            self.angle = 90
+            self.angle = 135
 
     def on_throw(self):
         random.choice(self.sounds).play(.5)
@@ -87,9 +94,12 @@ class ThrowingKnife(Projectile):
         if self.center_y < 0:
             self.kill()
 
-    def set_angle_change(self, dx, dy, angle):
-        self.angle = angle - 45
-        self.change_angle = 180 / 40
+    def set_angle_change(self, angle, change):
+        if self.direction == right:
+            self.angle += angle
+        else:
+            self.angle += angle - 180
+        self.change_angle = change
         # # calculate how much to change the angle each update
         # a = math.degrees(math.atan2(dx, dy))
         # self.change_angle = 60

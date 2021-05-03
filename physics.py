@@ -6,7 +6,8 @@ import matplotlib.pyplot as mp
 from player import Player
 import time
 from abc import ABC, abstractmethod
-from numba import jit
+# from numba import jit
+from copy import deepcopy
 
 left = -1
 right = 1
@@ -67,14 +68,14 @@ class PhysicsEngine:
         # trajectory.slice_at_collision(self.surface_list)
         # trajectory.trim()
         knife.throw(trajectory)
-
-        mid_point = trajectory.get_max_point()
-        start_point = trajectory.x0, trajectory.y0
-        end_point = trajectory.get_point_of_impact(self.surface_list)
-        tri = Triangle(start_point, mid_point, end_point)
-        knife.triangle = tri
+        # knife.triangle = tri
         # print(f"A: {a}, B: {b}, C: {c}")
+        self.player.direction = left
+        if x > self.player.center_x:
+            self.player.direction = right
         knife.set_direction(self.player.direction)
+
+        knife.set_angle_change(trajectory.angle, self.get_angle_change(trajectory))
         # knife.change_angle = angle_change / len(trajectory.get_sliced(self.surface_list))
         self.add_object(knife)
 
@@ -118,7 +119,7 @@ class PhysicsEngine:
         p = path.get_path()
         # dist = arcade.get_distance_between_sprites(self.player, knife)
 
-        dx = arcade.get_distance(self.player.center_x, self.player.center_y, p[-1][0], p[-1][1]) # change in x
+        dx = arcade.get_distance(self.player.center_x, self.player.center_y, p[-1][0], p[-1][1])  # change in x
         print(f"dy: none dx: {dx}")
 
         print("vel:", v)  # total velocity
@@ -154,12 +155,29 @@ class PhysicsEngine:
         v = tri.hypotenuse() * knife.speed
         if v > knife.max_speed:
             v = knife.max_speed
-        return ProjectileDistanceTrajectory(self.player.center_x, self.player.center_y, v, tri.angle, 5, precision)
+        return ProjectileDistanceTrajectory(self.player.center_x, self.player.center_y, v, tri.angle, 5 , precision)
 
     # def get_trajectory_from_player(self, x0, y0, v0):
     #     tri = Triangle(self.player.center_x, x0, self.player.center_y, y0, 100)
     #     return ProjectileDistanceTrajectory(self.player.center_x, self.player.center_y, v0, tri.angle, self.gravity)
+    def get_angle_change(self, trajectory):
+        mid_point = trajectory.get_max_point()
+        start_point = trajectory.x0, trajectory.y0
+        end_point = trajectory.get_point_of_impact(self.surface_list)
+        tri = Triangle(start_point, mid_point, end_point)
+        v = trajectory.v0
+        vy = v * math.sin(math.radians(tri.angle_a()))
 
+        time = (-vy - vy) / -5  # time
+        new = deepcopy(trajectory)
+        new.slice_at_collision(self.surface_list)
+        new.trim()
+        ln = len(new.get_path())
+        chng = (180 - tri.angle_b()) / (time / (1 / 3))
+        # if tri.an
+        if new.get_index_of_impact(self.surface_list) <= new.get_path().index(new.get_max_point()):
+            chng = (90 - tri.angle_b()) / (time / (1 / 3))
+        return chng
 
 class DistanceTrajectory(Trajectory):
     def __init__(self, x0, y0, v0, angle, gravity, precision):
@@ -241,21 +259,21 @@ class Triangle:
         th = (a ** 2) - (b ** 2 + c ** 2)
         bh = -2 * b * c
         eq = th / bh
-        return math.degrees(math.cos(eq))
+        return math.degrees(math.acos(eq))
 
     def angle_b(self):
         a, b, c = self.sides
         th = (b ** 2) - (a ** 2 + c ** 2)
         bh = -2 * a * c
         eq = th / bh
-        return math.degrees(math.cos(eq))
+        return math.degrees(math.acos(eq))
 
     def angle_c(self):
         a, b, c = self.sides
         th = (c ** 2) - (b ** 2 + a ** 2)
         bh = -2 * a * b
         eq = th / bh
-        return math.degrees(math.cos(eq))
+        return math.degrees(math.acos(eq))
 
 
 class StaticTriangle:
@@ -288,13 +306,7 @@ class Geometry:
     def get_distance(x1, y1, x2, y2):
         return math.sqrt(((x2 - x1) ** 2) + ((y2 - y1) ** 2))
 
-    @staticmethod
-    def get_angle_b(a, b, c):
-        # law of cosine for angle B
-        top = (b ** 2) - (a ** 2 + c ** 2)
-        bottom = -2 * a * c
-        eq = top / bottom  # top of equation / bottom
-        return math.degrees(math.acos(eq))  # return inverse cosine
+
 
     @staticmethod
     def get_triangle(point1, point2, point3):
@@ -380,6 +392,10 @@ class Geometry:
     def get_time(velocity, distance):
         t = distance/velocity
         return t
+
+    def get_projectile_trajectory(self):
+        pass
+
 
 # def get_path(self, x1, y1, x2, y2, v, rn):
 #     ang = self.get_triangle(x1, x2, y1, y2, rn)
