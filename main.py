@@ -10,6 +10,7 @@ import timeit
 import time
 from physics import PhysicsEngine
 import physics
+from jarcade.shapes import Triangle, StaticTriangle
 from arcade.gui import UIManager
 import random
 import inspect
@@ -19,13 +20,14 @@ import level_select
 from level_load import load_map
 from item_load import load_knife
 import item_load
+from screen_scroll import ScrollManager
 
 SW, SH = 832, 768
 SCALE = 1
 GRAVITY = 1.5
-JUMP_SPEED = 24
-LEFT_VIEW_MARGIN = 384
-RIGHT_VIEW_MARGIN = 384
+JUMP_SPEED = 35
+LEFT_VIEW_MARGIN = 416
+RIGHT_VIEW_MARGIN = 416
 TOP_VIEW_MARGIN = 300
 BOTTOM_VIEW_MARGIN = 300
 TOP_VIEW_CHANGE = 64
@@ -38,16 +40,15 @@ PLAYER_SPEED = 4
 FPS = 60
 
 perf = FpsCounter(0, 768)
-class Window(arcade.Window):
+
+
+
+class Game(arcade.Window):
     def __init__(self):
-        super(Window, self).__init__(SW, SH, "Sharpthrow Shawn")
+        super().__init__(SW, SH, "Sharpthrow Shawn")
         self.set_vsync(True)
         self.set_update_rate(1 / FPS)
         self.set_mouse_visible(True)
-
-class Game(arcade.View):
-    def __init__(self):
-        super().__init__()
         arcade.set_background_color(arcade.color.CHARCOAL)
         self.player = None
         self.players = arcade.SpriteList()
@@ -81,7 +82,6 @@ class Game(arcade.View):
         # m = pyglet.window.ImageMouseCursor(mc)
         # self.set_mouse_cursor(m)
         # arcade.load_texture('resources/sprites/mouse.png')
-        self.ui_manager = UIManager()
 
         # Time for on_draw
         self.draw_time = 0
@@ -99,6 +99,9 @@ class Game(arcade.View):
         self.knives_to_load = [load_knife(knife) for knife in item_load.knives]
         self.knives = {knife.name: knife for knife in self.knives_to_load}
         self.set_level("test")
+        self.scroll_manager = ScrollManager(self)
+        self.scroll_manager.set_view_change_margins(right=RIGHT_VIEW_MARGIN, left=LEFT_VIEW_MARGIN, top=TOP_VIEW_MARGIN, bottom=BOTTOM_VIEW_MARGIN)
+
         # physics.TimeTrajectory(10, 10, 35, 12, 3, 1654, .5)
         # physics.Triangle(10, 25, 4, 16, 100)
         self.setup()
@@ -133,6 +136,8 @@ class Game(arcade.View):
         self.physics = PhysicsEngine(self.player, self.surface_list, self.target_list, 3, self.map)
         self.max_len = self.player.max_hp * 10
         self.show_math = False
+
+        self.scroll_manager.set_view_max(right=self.map.x_bound, left=0, top=self.map.y_bound, bottom=0)
 
     def on_draw(self):
         start_time = timeit.default_timer()
@@ -209,7 +214,6 @@ class Game(arcade.View):
     def on_update(self, delta_time: float):
         start_time = timeit.default_timer()
         # Start timing how long this takes
-        changed = False
         # self.ui_manager.on_update(delta_time)
 
         # x = self.mouse_x + (self.right_view - SW)
@@ -246,81 +250,27 @@ class Game(arcade.View):
 
         self.player.update()
         self.player.update_animation()
-        self.physics_engine.update()
+        # self.physics_engine.update()
         self.physics.update()
+        self.scroll_manager.update()
         if self.map.name == 'tutorial' and self.player.center_y < 200:
             self.setup()
         # screen scrolling system
-        changed = self.scroll_screen()
+        # changed = self.scroll_screen()
         self.set_projectile()
-        # prevent the view from going below or to the side of the level
-        if self.bottom_view < 0:
-            self.bottom_view = 0
-            self.top_view = self.bottom_view + SH
-        elif self.top_view > self.map.y_bound:
-            self.top_view = self.map.y_bound
-            self.bottom_view = self.top_view - SH
-        if self.right_view >= self.map.x_bound:
-            self.left_view = self.map.x_bound - SW
-            self.right_view = self.left_view + SW
-        elif self.left_view < 0:
-            self.left_view = 0
-            self.right_view = self.left_view + SW
 
-        # if view has changed, update the window accordingly
-        if changed:
-            arcade.set_viewport(self.left_view, self.right_view, self.bottom_view, self.top_view)
         self.key_change()
         self.processing_time = timeit.default_timer() - start_time
+        self.right_view, self.left_view, self.top_view, self.bottom_view = self.scroll_manager.get_views()
 
     def key_change(self):
         if self.keys_pressed:
             key = self.keys_pressed[0]
             f = self.controls[key]['func']
             f(self.controls[key]['param'])
-            # if self.player.can_move:
-            #     key = self.keys_pressed[0]
-            #     f = self.controls[key]['func']
-            #     f(self.controls[key]['param'])
-            # else:
-            #     # key = self.keys_pressed[0]
-            #     # f = self.slow[key]['func']
-            #     # f(self.slow[key]['param'])
-            #     self.player.change_x = 0
 
         else:
             self.player.speed_x(0)
-
-    def get_screen_boundaries(self):
-        left_bound = self.left_view + LEFT_VIEW_MARGIN
-        right_bound = self.right_view - RIGHT_VIEW_MARGIN
-        top_bound = self.top_view - TOP_VIEW_MARGIN
-        bottom_bound = self.bottom_view + BOTTOM_VIEW_MARGIN
-        return right_bound, left_bound, top_bound, bottom_bound
-
-    def scroll_screen(self):
-        right_boundary, left_boundary, top_boundary, bottom_boundary = self.get_screen_boundaries()
-        x = False
-        if self.player.left < left_boundary:
-            self.left_view -= left_boundary - self.player.left
-            self.right_view = SW + self.left_view
-            x = True
-        elif self.player.right > right_boundary:
-            self.left_view += self.player.right - right_boundary
-            self.right_view = SW + self.left_view
-            x = True
-        if self.player.top > top_boundary:
-            self.bottom_view += self.player.top - top_boundary
-            self.top_view = SH + self.bottom_view
-            x = True
-        elif self.player.bottom < bottom_boundary:
-            self.bottom_view -= bottom_boundary - self.player.bottom
-            self.top_view = self.bottom_view + SH
-            x = True
-        if x:
-            return True
-        else:
-            return False
 
     def actual_x(self, x):
         return x + (self.right_view - SW)
@@ -358,12 +308,12 @@ class Game(arcade.View):
 
 
         # if player presses space, and jump conditions are met, jump
-        if symbol == arcade.key.SPACE:
+        elif symbol == arcade.key.SPACE:
             if self.physics_engine.can_jump():
-                self.physics_engine.jump(JUMP_SPEED)
+                self.physics.jump(JUMP_SPEED)
         elif symbol == arcade.key.P:
             print(f"player pos: {self.player.position}")
-            print(f"top_view: {self.top_view}")
+            self.scroll_manager.output_values()
         elif symbol == arcade.key.M:
             if self.show_math:
                 self.show_math = False
@@ -407,6 +357,9 @@ class Game(arcade.View):
         # removes keys from keys_pressed if they are no longer pressed
         if key in self.keys_pressed:
             self.keys_pressed.remove(key)
+
+        if key == arcade.key.SPACE:
+            self.player.change_y *= -.5
 
 
 
@@ -468,7 +421,7 @@ class Game(arcade.View):
         direction = right
         if x < self.player.center_x:
             direction = left
-        tri = physics.StaticTriangle(self.player.center_x, x, self.player.center_y, y, direction * 100)
+        tri = StaticTriangle(self.player.center_x, x, self.player.center_y, y, direction * 100)
         ang = tri.get_angle()
         arcade.draw_text(f"{ang: .0f}", self.player.center_x, self.player.top, arcade.color.RED, 12)
         tri.draw()
@@ -481,7 +434,7 @@ class Game(arcade.View):
         start_point = trajectory.x0, trajectory.y0
         # trajectory.trim()
         end_point = trajectory.get_point_of_impact(self.surface_list)
-        tri = physics.Triangle(start_point, mid_point, end_point)
+        tri = Triangle(start_point, mid_point, end_point)
 
         tri.draw()
         a, b, c = tri.angle_a(), tri.angle_b(), tri.angle_c()
@@ -494,9 +447,7 @@ class Game(arcade.View):
 
 
 def main():
-    window = Window()
     game = Game()
-    window.show_view(game)
     arcade.run()
 
 

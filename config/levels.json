@@ -11,7 +11,7 @@
              },
   "test": {
     "name": "level_1",
-    "x_bound": 2500,
+    "x_bound": 2558,
     "y_bound": 1280,
     "collisions": "block",
     "spawn_pos": {

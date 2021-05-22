@@ -2,7 +2,10 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/../jakade/.idea/jakade.iml" filepath="$PROJECT_DIR$/../jakade/.idea/jakade.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../Adventure/.idea/Adventure.iml" filepath="$PROJECT_DIR$/../Adventure/.idea/Adventure.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../ConstructionCapitalist/.idea/ConstructionCapitalist.iml" filepath="$PROJECT_DIR$/../ConstructionCapitalist/.idea/ConstructionCapitalist.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../SandwhichSlapper/.idea/SandwhichSlapper.iml" filepath="$PROJECT_DIR$/../SandwhichSlapper/.idea/SandwhichSlapper.iml" />
+      <module fileurl="file://$PROJECT_DIR$/jarcade/.idea/jarcade.iml" filepath="$PROJECT_DIR$/jarcade/.idea/jarcade.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/sharpthrow.iml" filepath="$PROJECT_DIR$/.idea/sharpthrow.iml" />
     </modules>
   </component>
